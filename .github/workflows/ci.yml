@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    paths: ["core/**", "backend/**", "web/**", "pipeline/**", "schema/**", "data/bank/**", ".github/workflows/ci.yml"]
+  pull_request:
+    paths: ["core/**", "backend/**", "web/**", "pipeline/**", "schema/**", "data/bank/**", ".github/workflows/ci.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - name: Core (golden cases from the Python reference scorer)
+        working-directory: core
+        run: go vet ./... && go test ./...
+      - name: API
+        working-directory: backend
+        run: go vet ./... && go test ./...
+      - uses: acifani/setup-tinygo@v2
+        with:
+          tinygo-version: "0.44.0"
+          install-binaryen: "true"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: WebAssembly build matches the golden cases
+        working-directory: core
+        run: |
+          tinygo build -o build/trace.wasm -target=wasm-unknown -no-debug -opt=z ./cmd/wasm
+          node cmd/wasm/golden_test.mjs build/trace.wasm
+      - name: Web
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Golden cases are up to date with the bank
+        run: |
+          python -m pip install -r pipeline/requirements.txt
+          python -m pipeline.golden
+          git diff --exit-code -- core/trace/testdata/golden.json

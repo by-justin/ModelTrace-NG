@@ -1,4 +1,4 @@
-name: Deploy static ModelTrace to GitHub Pages
+name: Deploy the static site to GitHub Pages
 
 on:
   push:
@@ -21,19 +21,30 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Assemble manual-only site
-        run: |
-          mkdir -p _site/data
-          cp static/index.html static/styles.css static/repository-link.css static/pages-app.js static/fingerprint-core.js static/challenge-browser.js static/.nojekyll _site/
-          cp data/unified_bank.json _site/data/unified_bank.json
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          path: _site
-      - name: Deploy
-        id: deployment
+          go-version-file: core/go.mod
+      - uses: acifani/setup-tinygo@v2
+        with:
+          tinygo-version: "0.44.0"
+          install-binaryen: "true"
+      - name: Build the WebAssembly scorer
+        working-directory: core
+        run: tinygo build -o build/trace.wasm -target=wasm-unknown -no-debug -opt=z ./cmd/wasm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build the site
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deployment
         uses: actions/deploy-pages@v4
