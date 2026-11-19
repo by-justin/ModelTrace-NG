@@ -40,4 +40,4 @@ func (s *File) Save(_ context.Context, sub Submission) error {
 	return nil
 }
 
-func (s *File) Close() { s.f.Close() }
+func (s *File) Close() { _ = s.f.Close() }
