@@ -3,14 +3,15 @@
 The public site: static, paste-only, scoring in the browser with the TinyGo build of `core/trace`.
 
 ```bash
-npm ci
-npm run dev        # copies ../data/bank/bank.fb and ../core/build/trace.wasm into public/ first
-npm run build      # dist/ — deploy anywhere static (GitHub Pages builds it from CI)
-npm test
+pnpm install
+pnpm dev           # copies ../data/bank/bank.fb and ../core/build/trace.wasm into public/ first
+pnpm build         # dist/ — deploy anywhere static (CI builds and deploys it to GitHub Pages)
+pnpm test          # includes the browser scorer against every golden case
 ```
 
-Build the WebAssembly scorer before the first run:
-`cd core && tinygo build -o build/trace.wasm -target=wasm-unknown -no-debug -opt=z ./cmd/wasm`.
+Build the WebAssembly scorer before the first run (`mt wasm` in the Nix dev shell, or
+`cd core && tinygo build -o build/trace.wasm -target=wasm-unknown -no-debug -opt=z ./cmd/wasm`).
+`mt dev` and `mt site` do both steps.
 
 ## Optional API
 
