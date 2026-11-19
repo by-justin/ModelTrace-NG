@@ -10,6 +10,7 @@ Rules, in order:
 5. Only complete labels are kept: 36 prompts covering all 12 prompt setups three times each.
 6. Merge groups rename their members to the group label.
 """
+
 from __future__ import annotations
 
 import collections
@@ -78,21 +79,23 @@ def load_rows(config: dict | None = None, root: Path = records.RECORDS) -> tuple
         family_id = family_of(label, config)
         for row in items:
             numbers = parse_numbers(row["text"])
-            rows.append({
-                "source": alias.get(label, label),
-                "member": label,
-                "family_id": family_id,
-                "condition_id": row["condition_id"],
-                "nuisance_condition_id": row.get("nuisance_condition_id", row["condition_id"]),
-                "challenge_id": row["challenge_id"],
-                "requested_count": row.get("requested_count"),
-                "text": row["text"],
-                "numbers": numbers,
-                "counts": count_numbers(numbers),
-                "route_class": route_class(row, family_id, config),
-                "provider": row["provider_name"],
-                "collected_at": str(row.get("collected_at", ""))[:10],
-            })
+            rows.append(
+                {
+                    "source": alias.get(label, label),
+                    "member": label,
+                    "family_id": family_id,
+                    "condition_id": row["condition_id"],
+                    "nuisance_condition_id": row.get("nuisance_condition_id", row["condition_id"]),
+                    "challenge_id": row["challenge_id"],
+                    "requested_count": row.get("requested_count"),
+                    "text": row["text"],
+                    "numbers": numbers,
+                    "counts": count_numbers(numbers),
+                    "route_class": route_class(row, family_id, config),
+                    "provider": row["provider_name"],
+                    "collected_at": str(row.get("collected_at", ""))[:10],
+                }
+            )
     # a merge group is only kept when every member is complete
     for group, spec in config["merge"].items():
         if any(member in dropped for member in spec["members"] if member in per_label):

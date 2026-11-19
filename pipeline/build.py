@@ -8,34 +8,47 @@ What is fitted (everything else is a fixed setting):
 - softmax temperatures (beta) for 1, 2 and 3 replies, by leave-prompts-out cross-validation.
 Per-model accuracy is measured by leaving one whole prompt setup out at a time.
 """
+
 from __future__ import annotations
 
 import argparse
 import itertools
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 
-from .features import ALPHA, hellinger_feature, ordered_block_feature
-from .parsing import MIN_NUMBERS, MIN_RATIO, VALUE_MAX
 from . import family
 from .export import to_flatbuffer
+from .features import ALPHA, hellinger_feature, ordered_block_feature
+from .parsing import MIN_NUMBERS, MIN_RATIO, VALUE_MAX
 from .references import ROOT, load_config, load_rows
 from .scoring import log_loss_beta, reply_scores
 
 ORDERED_WEIGHT = 0.25
 NUISANCE_RANK = 2
-UNKNOWN_PERCENTILE = 1   # weak-fit threshold: 1% of genuine held-out tests fall below it ("by a wide margin")
-TIER_MATCH = 0.80        # top model probability for a "match" verdict
-TIER_FAMILY = 0.80       # top family probability for a "family" verdict
+UNKNOWN_PERCENTILE = 1  # weak-fit threshold: 1% of genuine held-out tests fall below it ("by a wide margin")
+TIER_MATCH = 0.80  # top model probability for a "match" verdict
+TIER_FAMILY = 0.80  # top family probability for a "family" verdict
 OUT_DIR = ROOT / "data" / "bank"
 
-BRANDS = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini", "gemma": "Gemma", "deepseek": "DeepSeek",
-          "muse": "Muse", "nemotron": "Nemotron", "ernie": "ERNIE", "north": "North", "lfm": "LFM",
-          "ling": "Ling", "particle": "Particle", "flint": "Flint"}
+BRANDS = {
+    "gpt": "GPT",
+    "claude": "Claude",
+    "gemini": "Gemini",
+    "gemma": "Gemma",
+    "deepseek": "DeepSeek",
+    "muse": "Muse",
+    "nemotron": "Nemotron",
+    "ernie": "ERNIE",
+    "north": "North",
+    "lfm": "LFM",
+    "ling": "Ling",
+    "particle": "Particle",
+    "flint": "Flint",
+}
 
 
 def display_name(label: str, config: dict) -> str:
@@ -49,14 +62,22 @@ def display_name(label: str, config: dict) -> str:
     words: list[str] = []
     for part in parts[1:]:
         if words and words[-1].replace(".", "").isdigit() and part.isdigit():
-            words[-1] += "." + part          # claude-opus-4-6 -> 4.6
+            words[-1] += "." + part  # claude-opus-4-6 -> 4.6
         else:
             words.append(part)
-    words = [w.upper() if re.fullmatch(r"a?\d+(\.\d+)?b", w) else "IT" if w == "it"
-             else w if w[0].isdigit() else w.capitalize() for w in words]
+    words = [
+        w.upper()
+        if re.fullmatch(r"a?\d+(\.\d+)?b", w)
+        else "IT"
+        if w == "it"
+        else w
+        if w[0].isdigit()
+        else w.capitalize()
+        for w in words
+    ]
     if parts[0] == "gpt" and words:
-        return " ".join([f"GPT-{words[0]}"] + words[1:])
-    return " ".join([BRANDS.get(parts[0], parts[0].title())] + words)
+        return " ".join([f"GPT-{words[0]}", *words[1:]])
+    return " ".join([BRANDS.get(parts[0], parts[0].title()), *words])
 
 
 def _nuisance_basis(standardized: np.ndarray, groups: np.ndarray) -> np.ndarray:
@@ -85,22 +106,29 @@ def fit_blocks(rows: list[dict], model_ids: list[str]) -> dict:
     groups = np.asarray([r["nuisance_condition_id"] for r in rows])
     envs = sorted({r["condition_id"] for r in rows})
     blocks = {}
-    for name, raw in (("hellinger", np.stack([_feature(r, "_h") for r in rows])),
-                      ("ordered", np.stack([_feature(r, "_o") for r in rows]))):
+    for name, raw in (
+        ("hellinger", np.stack([_feature(r, "_h") for r in rows])),
+        ("ordered", np.stack([_feature(r, "_o") for r in rows])),
+    ):
         mean, scale = raw.mean(axis=0), raw.std(axis=0)
         scale[scale < 1e-12] = 1.0
         standardized = (raw - mean) / scale
         basis = _nuisance_basis(standardized, groups)
         projected = standardized - (standardized @ basis.T) @ basis if basis.size else standardized
         block = {
-            "mean": mean, "scale": scale, "basis": basis,
+            "mean": mean,
+            "scale": scale,
+            "basis": basis,
             "centroids": _unit_rows(np.stack([projected[labels == m].mean(axis=0) for m in model_ids])),
         }
-        if name == "ordered":   # per-setup centroids without the projection, for the template score
+        if name == "ordered":  # per-setup centroids without the projection, for the template score
             env_of = np.asarray([r["condition_id"] for r in rows])
-            block["env_centroids"] = np.stack([
-                _unit_rows(np.stack([standardized[(env_of == e) & (labels == m)].mean(axis=0) for m in model_ids]))
-                for e in envs])
+            block["env_centroids"] = np.stack(
+                [
+                    _unit_rows(np.stack([standardized[(env_of == e) & (labels == m)].mean(axis=0) for m in model_ids]))
+                    for e in envs
+                ]
+            )
         blocks[name] = block
     return blocks
 
@@ -118,7 +146,9 @@ def calibrate(rows: list[dict], model_ids: list[str]) -> list[dict]:
             ids = sorted({r["challenge_id"] for r in rows if r["condition_id"] == condition})
             for held in itertools.combinations(ids, query_count):
                 held_set = set(held)
-                bank = _scoring_bank(fit_blocks([r for r in rows if r["challenge_id"] not in held_set], model_ids), model_ids)
+                bank = _scoring_bank(
+                    fit_blocks([r for r in rows if r["challenge_id"] not in held_set], model_ids), model_ids
+                )
                 for truth, model_id in enumerate(model_ids):
                     mine = [r for r in rows if r["source"] == model_id and r["challenge_id"] in held_set]
                     # merged groups have several members per prompt: score one member's answers at a time
@@ -128,8 +158,13 @@ def calibrate(rows: list[dict], model_ids: list[str]) -> list[dict]:
                         records.append((scores, truth))
         beta = log_loss_beta(records)
         correct = sum(int(np.argmax(s)) == t for s, t in records)
-        out.append({"queries": query_count, "beta": beta, "cv_accuracy": correct / len(records), "samples": len(records)})
-        print(f"  calibration q{query_count}: beta {beta:.3f}, cv accuracy {correct / len(records):.3f} ({len(records)} tests)")
+        out.append(
+            {"queries": query_count, "beta": beta, "cv_accuracy": correct / len(records), "samples": len(records)}
+        )
+        print(
+            f"  calibration q{query_count}: beta {beta:.3f}, "
+            f"cv accuracy {correct / len(records):.3f} ({len(records)} tests)"
+        )
     return out
 
 
@@ -137,7 +172,7 @@ def leave_setup_out(rows: list[dict], model_ids: list[str]) -> dict:
     """Hold out one prompt setup at a time; record per-model hits and raw known-model scores."""
     per_model = {m: {"n1": 0, "h1": 0, "n3": 0, "h3": 0} for m in model_ids}
     known = {1: [], 2: [], 3: []}
-    held_out = []   # (condition, model, member, scores) kept for later analyses
+    held_out = []  # (condition, model, member, scores) kept for later analyses
     for env in sorted({r["condition_id"] for r in rows}):
         bank = _scoring_bank(fit_blocks([r for r in rows if r["condition_id"] != env], model_ids), model_ids)
         for truth, model_id in enumerate(model_ids):
@@ -211,26 +246,31 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
         hits = evaluation["per_model"][model_id]
         classes = sorted({r["route_class"] for r in mine})
         dates = sorted(r["collected_at"] for r in mine if r["collected_at"])
-        models.append({
-            "id": model_id,
-            "display_name": display_name(model_id, config),
-            "family": mine[0]["family_id"],
-            "members": sorted({r["member"] for r in mine}),
-            "source": next(c for c in ("official", "partner", "host", "reseller") if c in classes),
-            "providers": sorted({r["provider"] for r in mine}),
-            "collected": f"{dates[0]}..{dates[-1]}" if dates else "",
-            "responses": len(mine),
-            "acc1": hits["h1"] / max(hits["n1"], 1),
-            "acc3": hits["h3"] / max(hits["n3"], 1),
-        })
+        models.append(
+            {
+                "id": model_id,
+                "display_name": display_name(model_id, config),
+                "family": mine[0]["family_id"],
+                "members": sorted({r["member"] for r in mine}),
+                "source": next(c for c in ("official", "partner", "host", "reseller") if c in classes),
+                "providers": sorted({r["provider"] for r in mine}),
+                "collected": f"{dates[0]}..{dates[-1]}" if dates else "",
+                "responses": len(mine),
+                "acc1": hits["h1"] / max(hits["n1"], 1),
+                "acc3": hits["h3"] / max(hits["n3"], 1),
+            }
+        )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     bank = {
         "schema": "modeltrace-bank/2",
         "version": now.strftime("%Y.%m.%d"),
         "built_at": now.isoformat(timespec="seconds"),
-        "value_max": VALUE_MAX, "min_numbers": MIN_NUMBERS, "min_ratio": MIN_RATIO,
-        "alpha": ALPHA, "ordered_weight": ORDERED_WEIGHT,
+        "value_max": VALUE_MAX,
+        "min_numbers": MIN_NUMBERS,
+        "min_ratio": MIN_RATIO,
+        "alpha": ALPHA,
+        "ordered_weight": ORDERED_WEIGHT,
         "families": [{"id": fid, "name": config["families"][fid]["name"]} for fid in families],
         "models": models,
         "hellinger": blocks["hellinger"],
@@ -244,7 +284,9 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
     bank = quantize(bank)
     total = {k: sum(h[k] for h in evaluation["per_model"].values()) for k in ("n1", "h1", "n3", "h3")}
     report = {
-        "models": len(model_ids), "answers": len(rows), "left_out": dropped,
+        "models": len(model_ids),
+        "answers": len(rows),
+        "left_out": dropped,
         "calibration": calibration,
         "leave_setup_out": {"single": total["h1"] / total["n1"], "three": total["h3"] / total["n3"]},
         "family_classifier": family_eval,
@@ -259,8 +301,10 @@ def quantize(value):
     if isinstance(value, (np.ndarray, list, tuple)) and len(value) and not isinstance(np.ravel(value)[0], (str, dict)):
         return np.asarray(value, dtype=np.float32).astype(np.float64)
     if isinstance(value, dict):
-        return {k: quantize(v) if k not in ("responses", "value_max", "min_numbers", "members", "providers") else v
-                for k, v in value.items()}
+        return {
+            k: quantize(v) if k not in ("responses", "value_max", "min_numbers", "members", "providers") else v
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [quantize(v) for v in value]
     if isinstance(value, float):
@@ -288,7 +332,9 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "bank.json").write_text(json.dumps(to_jsonable(bank), ensure_ascii=False) + "\n", encoding="utf-8")
     (args.out / "bank.fb").write_bytes(to_flatbuffer(bank))
-    (args.out / "report.json").write_text(json.dumps(to_jsonable(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (args.out / "report.json").write_text(
+        json.dumps(to_jsonable(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(to_jsonable(report["leave_setup_out"])), "->", args.out)
 
 

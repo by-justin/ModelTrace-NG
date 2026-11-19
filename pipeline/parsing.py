@@ -2,16 +2,17 @@
 
 The Go core (core/trace/parse.go) implements the same rules; keep them in step.
 """
+
 from __future__ import annotations
 
 import math
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 VALUE_MIN = 1
 VALUE_MAX = 355
 DIMENSION = VALUE_MAX - VALUE_MIN + 1
-MIN_NUMBERS = 80          # a reply needs at least max(MIN_NUMBERS, ceil(MIN_RATIO * expected)) numbers
+MIN_NUMBERS = 80  # a reply needs at least max(MIN_NUMBERS, ceil(MIN_RATIO * expected)) numbers
 MIN_RATIO = 0.55
 
 _DIGITS = re.compile(r"[0-9]+")  # ASCII digits only, same as the Go and browser parsers

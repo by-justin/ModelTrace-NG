@@ -1,4 +1,5 @@
 """Write a bank dict as the binary FlatBuffers bank (schema/bank.fbs)."""
+
 from __future__ import annotations
 
 import flatbuffers
@@ -30,9 +31,16 @@ def _block(builder: flatbuffers.Builder, block: dict) -> int:
     mean = np.asarray(block["mean"])
     basis = np.asarray(block["basis"]).reshape(-1, mean.size)
     env = np.asarray(block.get("env_centroids", []))
-    vectors = {name: _floats(builder, value) for name, value in
-               (("mean", mean), ("scale", block["scale"]), ("basis", basis),
-                ("centroids", block["centroids"]), ("env", env))}
+    vectors = {
+        name: _floats(builder, value)
+        for name, value in (
+            ("mean", mean),
+            ("scale", block["scale"]),
+            ("basis", basis),
+            ("centroids", block["centroids"]),
+            ("env", env),
+        )
+    }
     Block.Start(builder)
     Block.AddDim(builder, mean.size)
     Block.AddRank(builder, basis.shape[0])

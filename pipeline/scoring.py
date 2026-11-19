@@ -2,6 +2,7 @@
 
 A bank is the dict written by pipeline.build (see data/bank/bank.json).
 """
+
 from __future__ import annotations
 
 import math
@@ -119,8 +120,12 @@ def analyze(replies: list[dict], bank: dict) -> dict:
     known = float(np.max(np.mean([s["raw"] for s in accepted], axis=0)))
     top, family_top = int(np.argmax(probs)), int(np.argmax(family_probs))
     return {
-        "used": used, "probs": probs, "top": top,
-        "family_probs": family_probs, "family_top": family_top, "known": known,
+        "used": used,
+        "probs": probs,
+        "top": top,
+        "family_probs": family_probs,
+        "family_top": family_top,
+        "known": known,
         "low_fit": low_fit(used, known, bank),
         "tier": tier(used, float(probs[top]), float(family_probs[family_top]), known, bank),
         "diagnostics": diagnostics,

@@ -57,15 +57,17 @@ def normalize(row: dict, vendor: str) -> dict:
     if "quality_reasons" not in row:  # pre-pipeline rows: validity was strict_valid only
         out["quality_reasons"] = [] if row.get("strict_valid") else ["too_few_numbers"]
         out["legacy_validity"] = True
-    out.update({
-        "label": row.get("label", row.get("source")),
-        "vendor": vendor,
-        "route": route,
-        "provider_name": provider_name,
-        "nuisance_condition_id": row.get("nuisance_condition_id", row["condition_id"]),
-        "parsed_count": len(numbers),
-        "minimum_numbers": minimum_numbers(int(row.get("requested_count") or 0)),
-    })
+    out.update(
+        {
+            "label": row.get("label", row.get("source")),
+            "vendor": vendor,
+            "route": route,
+            "provider_name": provider_name,
+            "nuisance_condition_id": row.get("nuisance_condition_id", row["condition_id"]),
+            "parsed_count": len(numbers),
+            "minimum_numbers": minimum_numbers(int(row.get("requested_count") or 0)),
+        }
+    )
     if hard_reasons(out) and len(out.get("text", "")) > REJECTED_TEXT_CHARS:
         out["text"] = out["text"][:REJECTED_TEXT_CHARS]
         out["text_truncated"] = True

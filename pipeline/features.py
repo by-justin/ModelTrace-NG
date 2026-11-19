@@ -2,15 +2,16 @@
 
 Mirrored by core/trace/features.go.
 """
+
 from __future__ import annotations
 
 import numpy as np
 
 from .parsing import DIMENSION
 
-ALPHA = 0.5            # additive smoothing for the value histogram
-ORDERED_CHUNKS = 4     # the reply is split into this many position chunks
-ORDERED_BINS = 16      # value bins per chunk
+ALPHA = 0.5  # additive smoothing for the value histogram
+ORDERED_CHUNKS = 4  # the reply is split into this many position chunks
+ORDERED_BINS = 16  # value bins per chunk
 ORDERED_DIM = ORDERED_CHUNKS * ORDERED_BINS + 10
 
 

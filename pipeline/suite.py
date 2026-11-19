@@ -2,11 +2,11 @@
 
 The browser generates test challenges with the same templates (web/src/core/challenges.ts).
 """
+
 from __future__ import annotations
 
 import random
 import secrets
-
 
 PREFIX_PARAGRAPHS = (
     "You are assisting inside a structured workspace. Follow surrounding style requirements while remaining precise and self-contained. ",
@@ -44,16 +44,52 @@ CHINESE_TEMPLATES = (
 ENVIRONMENTS = (
     {"transport": "clean", "style": "json", "counts": (218, 233, 247), "templates": ENGLISH_TEMPLATES},
     {"transport": "clean", "style": "json", "counts": (223, 239, 251), "templates": ENGLISH_ALTERNATIVES},
-    {"transport": "system", "style": "json", "counts": (227, 241, 257), "templates": ENGLISH_TEMPLATES, "fixed_prefix": FIXED_SYSTEM_PREFIX},
+    {
+        "transport": "system",
+        "style": "json",
+        "counts": (227, 241, 257),
+        "templates": ENGLISH_TEMPLATES,
+        "fixed_prefix": FIXED_SYSTEM_PREFIX,
+    },
     {"transport": "clean", "style": "zh", "counts": (294, 311, 329), "templates": CHINESE_TEMPLATES},
     {"transport": "clean", "style": "en", "counts": (297, 315, 331), "templates": ENGLISH_TEMPLATES},
     {"transport": "clean", "style": "json", "counts": (301, 319, 327), "templates": ENGLISH_TEMPLATES},
-    {"transport": "system", "style": "zh", "counts": (293, 310, 326), "templates": CHINESE_TEMPLATES, "prefix_words": 96},
-    {"transport": "system", "style": "zh", "counts": (296, 314, 330), "templates": CHINESE_TEMPLATES, "prefix_words": 512},
-    {"transport": "system", "style": "zh", "counts": (299, 317, 332), "templates": CHINESE_TEMPLATES, "prefix_words": 2048},
+    {
+        "transport": "system",
+        "style": "zh",
+        "counts": (293, 310, 326),
+        "templates": CHINESE_TEMPLATES,
+        "prefix_words": 96,
+    },
+    {
+        "transport": "system",
+        "style": "zh",
+        "counts": (296, 314, 330),
+        "templates": CHINESE_TEMPLATES,
+        "prefix_words": 512,
+    },
+    {
+        "transport": "system",
+        "style": "zh",
+        "counts": (299, 317, 332),
+        "templates": CHINESE_TEMPLATES,
+        "prefix_words": 2048,
+    },
     {"transport": "user", "style": "zh", "counts": (292, 308, 324), "templates": CHINESE_TEMPLATES, "prefix_words": 96},
-    {"transport": "user", "style": "zh", "counts": (295, 313, 328), "templates": CHINESE_TEMPLATES, "prefix_words": 512},
-    {"transport": "user", "style": "zh", "counts": (298, 316, 333), "templates": CHINESE_TEMPLATES, "prefix_words": 2048},
+    {
+        "transport": "user",
+        "style": "zh",
+        "counts": (295, 313, 328),
+        "templates": CHINESE_TEMPLATES,
+        "prefix_words": 512,
+    },
+    {
+        "transport": "user",
+        "style": "zh",
+        "counts": (298, 316, 333),
+        "templates": CHINESE_TEMPLATES,
+        "prefix_words": 2048,
+    },
 )
 
 
@@ -79,10 +115,13 @@ def format_prompt(template: str, count: int, style: str) -> str:
     if style == "json":
         return task + direct + " Return one compact JSON array containing the complete sequence and no explanation."
     if style == "en":
-        return task + direct + " Separate values clearly, start with the first value, and output the complete sequence without explanation."
+        return (
+            task
+            + direct
+            + " Separate values clearly, start with the first value, and output the complete sequence without explanation."
+        )
     return (
-        task
-        + " 本任务必须由当前语言模型直接完成：禁止调用或借助任何工具，包括 Python、代码执行器、计算器、搜索、API "
+        task + " 本任务必须由当前语言模型直接完成：禁止调用或借助任何工具，包括 Python、代码执行器、计算器、搜索、API "
         "和外部随机数生成器。每个位置都要单独凭第一反应选择；不要从 1 开始计数，不要连续递增或递减，也不要采用等差、循环、重复区块或其他规则化模式。"
         "偶然想到相同数字是有效的；每项写出后不要再排序、重排、去重、替换或修正。数字之间用清晰的常见分隔符，"
         "直接从第一个取值开始，完整输出序列，不要解释。"
@@ -94,13 +133,9 @@ def fingerprint_suite() -> list[dict]:
     query_index = 1
     for environment_index, environment in enumerate(ENVIRONMENTS, start=1):
         condition = f"environment-{environment_index:02d}"
-        for variant, (count, template) in enumerate(
-            zip(environment["counts"], environment["templates"])
-        ):
+        for variant, (count, template) in enumerate(zip(environment["counts"], environment["templates"], strict=True)):
             prefix = environment.get("fixed_prefix") or (
-                prefix_text(environment["prefix_words"], variant)
-                if environment.get("prefix_words")
-                else ""
+                prefix_text(environment["prefix_words"], variant) if environment.get("prefix_words") else ""
             )
             suite.append(
                 {

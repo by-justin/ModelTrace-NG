@@ -4,6 +4,7 @@
 
 The Go tests load data/bank/bank.fb and must reproduce these outputs.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,10 +32,19 @@ def cases() -> list[dict]:
     out += [
         {"name": "empty", "replies": [{"text": "", "expected_count": 300}]},
         {"name": "too short", "replies": [{"text": "12, 45, 300, 7", "expected_count": 300}]},
-        {"name": "letters split runs", "replies": [{"text": "Here: " + ", ".join(str((i * 37) % 355 + 1) for i in range(120))
-                                                     + " and then 1 2 3", "expected_count": 120}]},
-        {"name": "out of range and full-width digits ignored",
-         "replies": [{"text": " ".join(str((i * 53) % 400) for i in range(200)) + " １２３", "expected_count": 180}]},
+        {
+            "name": "letters split runs",
+            "replies": [
+                {
+                    "text": "Here: " + ", ".join(str((i * 37) % 355 + 1) for i in range(120)) + " and then 1 2 3",
+                    "expected_count": 120,
+                }
+            ],
+        },
+        {
+            "name": "out of range and full-width digits ignored",
+            "replies": [{"text": " ".join(str((i * 53) % 400) for i in range(200)) + " １２３", "expected_count": 180}],
+        },
     ]
     return out
 
@@ -44,10 +54,13 @@ def main() -> None:
     results = []
     for case in cases():
         result = analyze(case["replies"], bank)
-        results.append({**case, "expected": {
-            k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in result.items()}})
+        results.append(
+            {**case, "expected": {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in result.items()}}
+        )
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({"bank_version": bank["version"], "cases": results}, ensure_ascii=False) + "\n", encoding="utf-8")
+    OUT.write_text(
+        json.dumps({"bank_version": bank["version"], "cases": results}, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"{len(results)} cases -> {OUT}")
 
 

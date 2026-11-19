@@ -14,6 +14,7 @@ Rules (see pipeline/references.py for how rows are used):
 - a prompt counts as done only once it has a valid answer from the same route, so rerunning fills gaps.
 The key is read from the file named by OPENROUTER_KEY_FILE and never logged or stored.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import records
@@ -61,8 +62,12 @@ def pattern_reasons(numbers: list[int]) -> list[str]:
 
 def _call(body: dict) -> dict:
     key = Path(os.environ["OPENROUTER_KEY_FILE"]).expanduser().read_text().strip()
-    request = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
-                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    request = urllib.request.Request(
+        URL,
+        data=json.dumps(body).encode(),
+        method="POST",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    )
     with urllib.request.urlopen(request, timeout=600) as response:
         return json.loads(response.read().decode())
 
@@ -77,7 +82,11 @@ def run(args: argparse.Namespace) -> None:
                 row = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if row["source"] == args.label and row.get("openrouter_provider_tag") == args.provider and not records.hard_reasons(row):
+            if (
+                row["source"] == args.label
+                and row.get("openrouter_provider_tag") == args.provider
+                and not records.hard_reasons(row)
+            ):
                 done.add(row["challenge_id"])
     tasks = [t for t in tasks if t["challenge_id"] not in done]
     lock, spend = threading.Lock(), [0.0]
@@ -132,35 +141,53 @@ def run(args: argparse.Namespace) -> None:
             numbers = parse_numbers(text)
             ratio = len(numbers) / task["expected_count"]
             finish = choice.get("finish_reason")
-            quality = (["too_few_numbers"] if len(numbers) < minimum_numbers(task["expected_count"]) else []) \
-                + ([] if RATIO_RANGE[0] <= ratio <= RATIO_RANGE[1] else [f"count_ratio_{ratio:.2f}"]) \
-                + ([] if finish in ("stop", None) else [f"finish_{finish}"]) + pattern_reasons(numbers)
+            quality = (
+                (["too_few_numbers"] if len(numbers) < minimum_numbers(task["expected_count"]) else [])
+                + ([] if RATIO_RANGE[0] <= ratio <= RATIO_RANGE[1] else [f"count_ratio_{ratio:.2f}"])
+                + ([] if finish in ("stop", None) else [f"finish_{finish}"])
+                + pattern_reasons(numbers)
+            )
             row = {
                 "row_id": f"{task['condition']}-{secrets.token_hex(8)}",
-                "source": args.label, "condition_id": task["condition"], "nuisance_condition_id": task["condition"],
-                "challenge_id": task["challenge_id"], "wrapper_transport": task["transport"],
-                "requested_count": task["expected_count"], "parsed_count": len(numbers),
+                "source": args.label,
+                "condition_id": task["condition"],
+                "nuisance_condition_id": task["condition"],
+                "challenge_id": task["challenge_id"],
+                "wrapper_transport": task["transport"],
+                "requested_count": task["expected_count"],
+                "parsed_count": len(numbers),
                 "provider": f"openrouter:{payload.get('provider', args.provider)}",
-                "openrouter_provider_tag": args.provider, "requested_model": args.model,
-                "response_model": payload.get("model"), "generation_id": payload.get("id"),
+                "openrouter_provider_tag": args.provider,
+                "requested_model": args.model,
+                "response_model": payload.get("model"),
+                "generation_id": payload.get("id"),
                 "reasoning_effort": args.effort or "provider_default",
                 "temperature": args.temperature if args.temperature is not None else "provider_default",
                 "top_p": args.top_p if args.top_p is not None else "provider_default",
                 "top_k": args.top_k if args.top_k is not None else "provider_default",
-                "max_tokens": args.max_tokens, "finish_reason": finish, "usage": usage,
-                "byok": usage.get("is_byok"), "request_seconds": round(time.time() - started, 2),
-                "attempt": attempt, "count_ratio": ratio, "quality_reasons": quality,
+                "max_tokens": args.max_tokens,
+                "finish_reason": finish,
+                "usage": usage,
+                "byok": usage.get("is_byok"),
+                "request_seconds": round(time.time() - started, 2),
+                "attempt": attempt,
+                "count_ratio": ratio,
+                "quality_reasons": quality,
                 "reference_valid": not [q for q in quality if not q.startswith("count_ratio")],
                 "output_sha256": hashlib.sha256(text.encode()).hexdigest(),
-                "collected_at": datetime.now(timezone.utc).isoformat(), "text": text,
+                "collected_at": datetime.now(UTC).isoformat(),
+                "text": text,
             }
             with lock:
                 spend[0] += float(usage.get("cost") or 0.0)
                 with args.out.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(row, ensure_ascii=False) + "\n")
                 stats["accepted" if row["reference_valid"] else "rejected"] += 1
-            print(f"  {task['challenge_id']}: {len(numbers)}/{task['expected_count']} "
-                  f"{'OK' if row['reference_valid'] else 'REJECT ' + ','.join(records.hard_reasons(row))}", flush=True)
+            print(
+                f"  {task['challenge_id']}: {len(numbers)}/{task['expected_count']} "
+                f"{'OK' if row['reference_valid'] else 'REJECT ' + ','.join(records.hard_reasons(row))}",
+                flush=True,
+            )
             if row["reference_valid"]:
                 return
 
@@ -176,8 +203,11 @@ def import_records(paths: list[Path]) -> None:
     with the group's rows in collection order (see pipeline.records for the format).
     """
     config = load_config()
-    rows = [records.normalize(row, family_of(row.get("label", row.get("source")), config))
-            for path in paths for row in records.read_jsonl(path)]
+    rows = [
+        records.normalize(row, family_of(row.get("label", row.get("source")), config))
+        for path in paths
+        for row in records.read_jsonl(path)
+    ]
     for path, count in sorted(records.write(rows).items()):
         print(f"{path.relative_to(records.ROOT)}: {count} rows")
 

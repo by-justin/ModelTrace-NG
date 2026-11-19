@@ -3,10 +3,12 @@
 Offline Python: collect reference answers, build the fingerprint bank, export it for the Go core.
 Nothing here runs in production; the site and the API only read the files it writes to `data/bank/`.
 
+Dependencies are managed with uv (`pyproject.toml`, `uv.lock`) and linted with ruff; inside
+`nix develop` the shortcuts are `mt import`, `mt bank` and `mt collect`.
+
 ```bash
-python -m pip install -r pipeline/requirements.txt
-python -m pipeline.build                      # data/bank/bank.json, bank.fb, report.json
-python -m pipeline.golden                     # core/trace/testdata/golden.json for the Go tests
+uv run python -m pipeline.build               # data/bank/bank.json, bank.fb, report.json
+uv run python -m pipeline.golden              # core/trace/testdata/golden.json for the Go tests
 ```
 
 | Module | Role |
@@ -25,10 +27,10 @@ python -m pipeline.golden                     # core/trace/testdata/golden.json 
 
 ## Adding a model
 
-1. Collect all 36 prompts: `python -m pipeline.collect run --model … --provider … --label … --out staging/x.jsonl --budget 1`.
+1. Collect all 36 prompts: `uv run python -m pipeline.collect run --model … --provider … --label … --out staging/x.jsonl --budget 1`.
    Run it again until the summary shows nothing left; partial models are left out of the bank.
-2. `python -m pipeline.collect import staging/x.jsonl` files the answers under `data/records/<vendor>/<label>/<route>.jsonl`.
-3. `python -m pipeline.build`, check `data/bank/report.json`, then `python -m pipeline.golden`.
+2. `uv run python -m pipeline.collect import staging/x.jsonl` files the answers under `data/records/<vendor>/<label>/<route>.jsonl`.
+3. `uv run python -m pipeline.build`, check `data/bank/report.json`, then `uv run python -m pipeline.golden`.
 
 Two versions that cannot be told apart (pooled affinity around 0.998) go into `config.json` → `merge` as one group.
 
