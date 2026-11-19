@@ -37,7 +37,9 @@
             shift || true
             case "$cmd" in
               collect) uv run python -m pipeline.collect run "$@" ;;
-              import)  uv run python -m pipeline.collect import "''${@:-staging/*.jsonl}" ;;
+              import)
+                if [ "$#" -eq 0 ]; then set -- staging/openrouter_*.jsonl; fi
+                uv run python -m pipeline.collect import "$@" ;;
               bank)    uv run python -m pipeline.build && uv run python -m pipeline.golden ;;
               wasm)    wasm ;;
               test)
@@ -52,7 +54,7 @@
               *)
                 cat <<'EOF'
             mt collect --model … --provider … --label … --out staging/x.jsonl --budget 1   collect the suite for one model
-            mt import [staging files]   file collected answers into data/records (default: staging/*.jsonl)
+            mt import [staging files]   file collected answers into data/records (default: staging/openrouter_*.jsonl)
             mt bank                     build data/bank and the golden test cases
             mt test                     Go core + API, WebAssembly golden check, web tests
             mt site | mt dev            build web/dist | serve the site locally
