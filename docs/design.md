@@ -38,7 +38,19 @@ pipeline/ (Python, offline)  →  data/bank/bank.fb  →  core/trace (Go, one pu
 | Storage | Postgres (one table) or a JSONL file for development | Only crowd submissions are stored; the API holds no other state. |
 
 The Flask app, its admin pages and browser enrollment were removed: collection is a command-line
-job, and nothing in production needs a write path besides submissions.
+job, and nothing in production needs a write path besides submissions. The Codex plugin
+(ModelTrace Guard) was removed too: it carried its own JavaScript scorer and a frozen bank.
+
+## Tooling
+
+| Concern | Choice | Why |
+|---|---|---|
+| Dependencies | One Nix flake (`flake.nix`, `flake.lock`) | Every tool — Go, TinyGo, binaryen, flatc, Node + pnpm, Python + uv + ruff, pre-commit, golangci-lint, PostgreSQL — pinned once and identical locally and in CI. |
+| Tasks | `mt` command defined in the flake | Replaces the Makefile; works from anywhere in the repository (`mt import`, `bank`, `test`, `site`, `dev`, `api`, `check`). |
+| Python | uv (`pyproject.toml`, `uv.lock`) and ruff | Fast, locked environments; one linter and formatter. |
+| Web | pnpm | Strict, content-addressed installs; lockfile in `web/pnpm-lock.yaml`. |
+| Quality gate | pre-commit, installed by `nix develop` | ruff, goimports, `go mod tidy`, `go vet`, golangci-lint, tsc and file hygiene on every commit; the same hooks run in CI (`mt check`). Hooks use the dev shell's tools, so their versions follow `flake.lock`. |
+| CI | One GitHub Actions workflow in the Nix shell | Checks, tests, golden cases against the committed bank, site build; deploys GitHub Pages from `main`. |
 
 ## Scoring
 
@@ -68,6 +80,10 @@ and the known-model check were added.
 
 ## Reference data
 
+- **Storage:** `data/records/<vendor>/<label>/<route>.jsonl`, one file per model label and
+  collection route, all in one row format (`pipeline/records.py`). Raw collector output stays in
+  the git-ignored `staging/` until `mt import` files it; prompts are regenerated from
+  `challenge_id`, and rejected answers keep their first 2,000 characters.
 - **Routes:** each model is pinned to one provider with no fallback. Official first (OpenAI,
   Anthropic, Google AI Studio or Vertex, NVIDIA, Baidu…), then the vendor's licensed cloud
   (partner), then a host running full-precision open weights. Compressed copies are labelled
