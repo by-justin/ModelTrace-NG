@@ -94,8 +94,18 @@ acc3():number {
   return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
 }
 
+fam3():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
+}
+
+fam3Unseen():number {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
+}
+
 static startModel(builder:flatbuffers.Builder) {
-  builder.startObject(10);
+  builder.startObject(12);
 }
 
 static addId(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset) {
@@ -162,12 +172,20 @@ static addAcc3(builder:flatbuffers.Builder, acc3:number) {
   builder.addFieldFloat32(9, acc3, 0.0);
 }
 
+static addFam3(builder:flatbuffers.Builder, fam3:number) {
+  builder.addFieldFloat32(10, fam3, 0.0);
+}
+
+static addFam3Unseen(builder:flatbuffers.Builder, fam3Unseen:number) {
+  builder.addFieldFloat32(11, fam3Unseen, 0.0);
+}
+
 static endModel(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createModel(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, family:number, membersOffset:flatbuffers.Offset, sourceOffset:flatbuffers.Offset, providersOffset:flatbuffers.Offset, collectedOffset:flatbuffers.Offset, responses:number, acc1:number, acc3:number):flatbuffers.Offset {
+static createModel(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, family:number, membersOffset:flatbuffers.Offset, sourceOffset:flatbuffers.Offset, providersOffset:flatbuffers.Offset, collectedOffset:flatbuffers.Offset, responses:number, acc1:number, acc3:number, fam3:number, fam3Unseen:number):flatbuffers.Offset {
   Model.startModel(builder);
   Model.addId(builder, idOffset);
   Model.addDisplayName(builder, displayNameOffset);
@@ -179,6 +197,8 @@ static createModel(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, dis
   Model.addResponses(builder, responses);
   Model.addAcc1(builder, acc1);
   Model.addAcc3(builder, acc3);
+  Model.addFam3(builder, fam3);
+  Model.addFam3Unseen(builder, fam3Unseen);
   return Model.endModel(builder);
 }
 }

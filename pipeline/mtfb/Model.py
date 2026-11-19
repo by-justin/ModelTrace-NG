@@ -124,8 +124,22 @@ class Model(object):
             return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
         return 0.0
 
+    # Model
+    def Fam3(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+        return 0.0
+
+    # Model
+    def Fam3Unseen(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
+            return self._tab.Get(flatbuffers.number_types.Float32Flags, o + self._tab.Pos)
+        return 0.0
+
 def ModelStart(builder):
-    builder.StartObject(10)
+    builder.StartObject(12)
 
 def Start(builder):
     ModelStart(builder)
@@ -201,6 +215,18 @@ def ModelAddAcc3(builder, acc3):
 
 def AddAcc3(builder, acc3):
     ModelAddAcc3(builder, acc3)
+
+def ModelAddFam3(builder, fam3):
+    builder.PrependFloat32Slot(10, fam3, 0.0)
+
+def AddFam3(builder, fam3):
+    ModelAddFam3(builder, fam3)
+
+def ModelAddFam3Unseen(builder, fam3Unseen):
+    builder.PrependFloat32Slot(11, fam3Unseen, 0.0)
+
+def AddFam3Unseen(builder, fam3Unseen):
+    ModelAddFam3Unseen(builder, fam3Unseen)
 
 def ModelEnd(builder):
     return builder.EndObject()

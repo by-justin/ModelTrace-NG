@@ -24,6 +24,8 @@ table Model {
   responses: uint32;
   acc1: float;             // leave-one-setup-out accuracy, one reply
   acc3: float;             // ... three replies
+  fam3: float;             // vendor named correctly, three replies, one prompt setup held out
+  fam3_unseen: float;      // vendor named correctly with this model left out of the bank entirely
 }
 
 // One feature block: standardize, remove `rank` prompt-setup directions, compare with centroids.

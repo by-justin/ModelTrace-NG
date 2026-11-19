@@ -155,8 +155,32 @@ func (rcv *Model) MutateAcc3(n float32) bool {
 	return rcv._tab.MutateFloat32Slot(22, n)
 }
 
+func (rcv *Model) Fam3() float32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+	}
+	return 0.0
+}
+
+func (rcv *Model) MutateFam3(n float32) bool {
+	return rcv._tab.MutateFloat32Slot(24, n)
+}
+
+func (rcv *Model) Fam3Unseen() float32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+	}
+	return 0.0
+}
+
+func (rcv *Model) MutateFam3Unseen(n float32) bool {
+	return rcv._tab.MutateFloat32Slot(26, n)
+}
+
 func ModelStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(12)
 }
 func ModelAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -193,6 +217,12 @@ func ModelAddAcc1(builder *flatbuffers.Builder, acc1 float32) {
 }
 func ModelAddAcc3(builder *flatbuffers.Builder, acc3 float32) {
 	builder.PrependFloat32Slot(9, acc3, 0.0)
+}
+func ModelAddFam3(builder *flatbuffers.Builder, fam3 float32) {
+	builder.PrependFloat32Slot(10, fam3, 0.0)
+}
+func ModelAddFam3Unseen(builder *flatbuffers.Builder, fam3Unseen float32) {
+	builder.PrependFloat32Slot(11, fam3Unseen, 0.0)
 }
 func ModelEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

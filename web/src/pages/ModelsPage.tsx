@@ -14,6 +14,8 @@ export function ModelsPage() {
   const [query, setQuery] = useState("");
   if (!scorer) return null;
   const { bank } = scorer;
+  // "vendor if unlisted" is undefined for a vendor's only model: leaving it out removes the vendor
+  const perFamily = bank.models.reduce<Record<number, number>>((n, m) => ({ ...n, [m.family]: (n[m.family] ?? 0) + 1 }), {});
 
   const filters = [
     { id: "all", label: t("models.all") },
@@ -57,6 +59,7 @@ export function ModelsPage() {
               <tr>
                 <th>{t("models.columns.model")}</th><th>{t("models.columns.vendor")}</th><th>{t("models.columns.source")}</th>
                 <th>{t("models.columns.answers")}</th><th>{t("models.columns.acc3")}</th><th>{t("models.columns.acc1")}</th>
+                <th>{t("models.columns.fam3")}</th><th>{t("models.columns.fam3Unseen")}</th>
                 <th>{t("models.columns.collected")}</th>
               </tr>
             </thead>
@@ -72,6 +75,10 @@ export function ModelsPage() {
                   <td className="num">{m.responses}</td>
                   <td className="num strong">{pct(m.acc3)}</td>
                   <td className="num">{pct(m.acc1)}</td>
+                  <td className="num">{pct(m.fam3)}</td>
+                  <td className="num" title={perFamily[m.family] < 2 ? t("models.onlyModel") : undefined}>
+                    {perFamily[m.family] < 2 ? "—" : pct(m.fam3Unseen)}
+                  </td>
                   <td className="muted nowrap">{m.collected.replace("..", " – ")}</td>
                 </tr>
               ))}

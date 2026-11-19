@@ -23,6 +23,8 @@ type Model struct {
 	Responses   int      `json:"responses"`
 	Acc1        float64  `json:"acc1"`
 	Acc3        float64  `json:"acc3"`
+	Fam3        float64  `json:"fam3"`        // vendor correct, 3 replies, setup held out
+	Fam3Unseen  float64  `json:"fam3_unseen"` // vendor correct with the model left out of the bank
 }
 
 // Family is a model vendor.
@@ -95,6 +97,7 @@ func Open(data []byte) (*Bank, error) {
 			ID: string(model.Id()), DisplayName: string(model.DisplayName()), Family: int(model.Family()),
 			Source: string(model.Source()), Collected: string(model.Collected()), Responses: int(model.Responses()),
 			Acc1: float64(model.Acc1()), Acc3: float64(model.Acc3()),
+			Fam3: float64(model.Fam3()), Fam3Unseen: float64(model.Fam3Unseen()),
 		}
 		for j := 0; j < model.MembersLength(); j++ {
 			m.Members = append(m.Members, string(model.Members(j)))

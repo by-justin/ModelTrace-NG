@@ -81,6 +81,8 @@ def to_flatbuffer(bank: dict) -> bytes:
         Model.AddResponses(builder, model["responses"])
         Model.AddAcc1(builder, model["acc1"])
         Model.AddAcc3(builder, model["acc3"])
+        Model.AddFam3(builder, model["fam3"])
+        Model.AddFam3Unseen(builder, model["fam3_unseen"])
         models.append(Model.End(builder))
 
     fm = bank["family_model"]

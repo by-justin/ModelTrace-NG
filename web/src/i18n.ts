@@ -82,7 +82,7 @@ const en = {
     all: "All",
     others: "Other vendors",
     search: "Search models",
-    columns: { model: "Model", vendor: "Vendor", source: "Source", answers: "Answers", acc3: "Correct · 3 replies", acc1: "Correct · 1 reply", collected: "Collected" },
+    columns: { model: "Model", vendor: "Vendor", source: "Source", answers: "Answers", acc3: "Correct · 3 replies", acc1: "Correct · 1 reply", fam3: "Vendor correct", fam3Unseen: "Vendor if unlisted", collected: "Collected" },
     sources: {
       official: { name: "Official", text: "The vendor's own API or subscription, pinned with no fallback." },
       partner: { name: "Partner", text: "Served by a cloud the vendor licenses it to, such as Google Vertex." },
@@ -90,7 +90,8 @@ const en = {
       reseller: { name: "Reseller · unverified", text: "Collected through a reseller; kept until checked against an official source." },
     },
     group: "{{count}} versions reported together",
-    footnote: "\"Correct\" holds out one whole prompt setup at a time and checks whether the model is named correctly. Accuracy with the site's own prompts will be published once a separate test set exists.",
+    onlyModel: "The only model from this vendor in the bank, so there is nothing to recognise the vendor by once it is left out.",
+    footnote: "\"Correct\" holds out one whole prompt setup at a time and checks whether the model is named correctly. \"Vendor correct\" is the same test for the vendor estimate (3 replies); \"Vendor if unlisted\" leaves the model out of the bank entirely and checks whether its vendor is still found, which is how a brand-new version would fare. Accuracy with the site's own prompts will be published once a separate test set exists.",
   },
   method: {
     title: "How ModelTrace works",
@@ -207,7 +208,7 @@ const zh: Dict = {
     all: "全部",
     others: "其他厂商",
     search: "搜索模型",
-    columns: { model: "模型", vendor: "厂商", source: "来源", answers: "样本数", acc3: "正确率 · 3 条回复", acc1: "正确率 · 1 条回复", collected: "采集时间" },
+    columns: { model: "模型", vendor: "厂商", source: "来源", answers: "样本数", acc3: "正确率 · 3 条回复", acc1: "正确率 · 1 条回复", fam3: "厂商正确率", fam3Unseen: "未收录时的厂商正确率", collected: "采集时间" },
     sources: {
       official: { name: "官方", text: "厂商自己的 API 或订阅，固定渠道、不回退。" },
       partner: { name: "合作方", text: "由厂商授权的云平台提供，例如 Google Vertex。" },
@@ -215,7 +216,8 @@ const zh: Dict = {
       reseller: { name: "转售 · 未验证", text: "通过转售商采集，在与官方来源核对前暂时保留。" },
     },
     group: "{{count}} 个版本合并显示",
-    footnote: "“正确率”的测法是每次留出一整组提示词设置，检查模型是否被正确识别。使用本站提示词的实际正确率将在建立独立测试集后公布。",
+    onlyModel: "这是指纹库中该厂商唯一的模型，移出后就没有可以用来识别该厂商的依据。",
+    footnote: "“正确率”的测法是每次留出一整组提示词设置，检查模型是否被正确识别。“厂商正确率”用同样方法检验厂商判断（3 条回复）；“未收录时的厂商正确率”把该模型完全移出指纹库，检查能否仍判断出厂商，相当于全新版本的表现。使用本站提示词的实际正确率将在建立独立测试集后公布。",
   },
   method: {
     title: "ModelTrace 的原理",

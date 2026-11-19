@@ -194,12 +194,17 @@ def leave_setup_out(rows: list[dict], model_ids: list[str]) -> dict:
     return {"per_model": per_model, "known": known, "held_out": held_out}
 
 
+def _rate(counts: list[int] | None) -> float:
+    return counts[0] / counts[1] if counts and counts[1] else 0.0
+
+
 def evaluate_family(rows: list[dict], families: list[str], beta: float) -> dict:
     """Family accuracy on 3-reply tests: one prompt setup held out, and whole models held out
-    (a family with a single model cannot be right in the second case)."""
-    out = {}
+    (a family with a single model cannot be right in the second case). Also per model."""
+    out: dict = {"per_model": {}}
     for name, split in (("setup_held_out", "condition_id"), ("model_held_out", "source")):
         hits = total = 0
+        per_model = out["per_model"].setdefault(name, {})
         for value in sorted({r[split] for r in rows}):
             train = [r for r in rows if r[split] != value]
             ids = list(dict.fromkeys(r["source"] for r in train))
@@ -219,8 +224,12 @@ def evaluate_family(rows: list[dict], families: list[str], beta: float) -> dict:
                 logits = np.mean([family.logits(family.feature(r), classifier) for r in group], axis=0)
                 lr = np.exp(logits - logits.max())
                 combined = 0.5 * lr / lr.sum() + 0.5 * from_models
-                hits += families[int(np.argmax(combined))] == group[0]["family_id"]
+                hit = families[int(np.argmax(combined))] == group[0]["family_id"]
+                hits += hit
                 total += 1
+                counts = per_model.setdefault(group[0]["source"], [0, 0])
+                counts[0] += hit
+                counts[1] += 1
         out[name] = hits / total
         print(f"  family, 3 replies, {name}: {hits / total:.3f}")
     return out
@@ -258,6 +267,8 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
                 "responses": len(mine),
                 "acc1": hits["h1"] / max(hits["n1"], 1),
                 "acc3": hits["h3"] / max(hits["n3"], 1),
+                "fam3": _rate(family_eval["per_model"]["setup_held_out"].get(model_id)),
+                "fam3_unseen": _rate(family_eval["per_model"]["model_held_out"].get(model_id)),
             }
         )
 
@@ -289,7 +300,7 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
         "left_out": dropped,
         "calibration": calibration,
         "leave_setup_out": {"single": total["h1"] / total["n1"], "three": total["h3"] / total["n3"]},
-        "family_classifier": family_eval,
+        "family_classifier": {k: v for k, v in family_eval.items() if k != "per_model"},
         "unknown_threshold": unknown,
     }
     return bank, report, rows, evaluation

@@ -17,6 +17,8 @@ export interface ModelInfo {
   responses: number;
   acc1: number;
   acc3: number;
+  fam3: number;        // vendor named correctly, 3 replies, prompt setup held out
+  fam3Unseen: number;  // vendor named correctly when this model is left out of the bank
 }
 
 export interface FamilyInfo {
@@ -91,6 +93,8 @@ function readBank(bytes: Uint8Array): BankInfo {
         responses: m.responses(),
         acc1: m.acc1(),
         acc3: m.acc3(),
+        fam3: m.fam3(),
+        fam3Unseen: m.fam3Unseen(),
       };
     }),
   };
