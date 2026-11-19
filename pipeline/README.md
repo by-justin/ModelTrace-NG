@@ -28,6 +28,7 @@ python -m pipeline.golden                     # core/trace/testdata/golden.json 
    Run it again until the summary shows nothing left; partial models are left out of the bank.
 2. `python -m pipeline.collect slim staging/x.jsonl data/references/x.jsonl` and list the file in `config.json` if it is new.
 3. `python -m pipeline.build`, check `data/bank/report.json`, then `python -m pipeline.golden`.
+   From the repo root, `make references bank` does steps 2–3 for every staging file, and `make test` checks the result.
 
 Two versions that cannot be told apart (pooled affinity around 0.998) go into `config.json` → `merge` as one group.
 

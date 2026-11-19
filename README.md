@@ -25,12 +25,14 @@ codex-plugin/  ModelTrace Guard，Codex 任务内监测插件（使用冻结的 
 ## 本地运行
 
 ```bash
-python -m pip install -r pipeline/requirements.txt
-python -m pipeline.build && python -m pipeline.golden      # 构建指纹库与对照测试
-(cd core && go test ./... && tinygo build -o build/trace.wasm -target=wasm-unknown -no-debug -opt=z ./cmd/wasm)
-(cd web && npm ci && npm run dev)                          # 静态网站
-(cd backend && go run ./cmd/api)                           # 可选：API，监听 :8080
+python -m pip install -r pipeline/requirements.txt   # 另需 go、tinygo（含 binaryen 的 wasm-opt）、node
+make references bank   # 把 staging/ 中采集到的回答导入 data/references，重建指纹库与对照测试
+make test              # Go 核心与 API、WebAssembly 对照、网站测试
+make dev               # 本地运行静态网站；make site 生成 web/dist
+make api               # 可选：本地运行 API（:8080）
 ```
+
+`make help` 列出全部目标；工具路径可用 `PYTHON=`、`TINYGO=`、`NPM=` 覆盖。
 
 网站默认不连接任何服务器（`web/public/config.json` 中 `apiBase` 为 `null`）。填入 API 地址后，每次分析会在后台附带 ALTCHA 工作量证明匿名分享，用户可在结果页关闭；失败时静默忽略。
 
