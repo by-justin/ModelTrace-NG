@@ -23,15 +23,18 @@ data/       参考回答（records/<厂商>/<模型>/<渠道>.jsonl）和构建�
 
 ## 本地运行
 
+全部依赖（Go、TinyGo、binaryen、flatc、Node + pnpm、Python + uv + ruff、pre-commit、golangci-lint、PostgreSQL）由 Nix flake 提供：
+
 ```bash
-python -m pip install -r pipeline/requirements.txt   # 另需 go、tinygo（含 binaryen 的 wasm-opt）、node
-make references bank   # 把 staging/ 中采集到的回答导入 data/records，重建指纹库与对照测试
-make test              # Go 核心与 API、WebAssembly 对照、网站测试
-make dev               # 本地运行静态网站；make site 生成 web/dist
-make api               # 可选：本地运行 API（:8080）
+nix develop            # 进入开发环境，并安装 pre-commit 钩子
+mt import && mt bank   # 把 staging/ 中采集到的回答导入 data/records，重建指纹库与对照测试
+mt test                # Go 核心与 API、WebAssembly 对照、网站测试
+mt dev                 # 本地运行静态网站；mt site 生成 web/dist
+mt api                 # 可选：本地运行 API（:8080）
+mt check               # 对整个仓库运行所有 pre-commit 检查
 ```
 
-`make help` 列出全部目标；工具路径可用 `PYTHON=`、`TINYGO=`、`NPM=` 覆盖。
+不进入 shell 也可以直接运行，例如 `nix develop -c mt test`。直接输入 `mt` 可查看全部命令。
 
 网站默认不连接任何服务器（`web/public/config.json` 中 `apiBase` 为 `null`）。填入 API 地址后，每次分析会在后台附带 ALTCHA 工作量证明匿名分享，用户可在结果页关闭；失败时静默忽略。
 
