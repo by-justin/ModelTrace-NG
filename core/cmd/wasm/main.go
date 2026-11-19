@@ -30,10 +30,14 @@ func main() {}
 
 //export buffer
 func buffer(n int32) uintptr {
-	if int(n) > cap(input) {
-		input = make([]byte, n)
+	size := int(n)
+	if size < 1 { // keep a valid pointer for empty input
+		size = 1
 	}
-	input = input[:n]
+	if size > cap(input) {
+		input = make([]byte, size)
+	}
+	input = input[:size]
 	return uintptr(unsafe.Pointer(&input[0]))
 }
 
