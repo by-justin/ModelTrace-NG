@@ -12,7 +12,7 @@ WASM   := core/build/trace.wasm
 .PHONY: help references bank golden wasm test test-go test-wasm test-web site dev api clean all
 
 help:
-	@echo "make references  copy staging/openrouter_*.jsonl into data/references (slim)"
+	@echo "make references  file staging/*.jsonl into data/records"
 	@echo "make bank        build data/bank/{bank.json,bank.fb,report.json} and core golden cases"
 	@echo "make wasm        TinyGo build of core/trace -> $(WASM)"
 	@echo "make test        Go core + API tests, WebAssembly golden check, web tests"
@@ -21,12 +21,9 @@ help:
 	@echo "make api         run the API locally on :8080"
 	@echo "make all         references, bank, test, site"
 
-# Collected answers live in staging/ (git-ignored) until they are slimmed into data/references.
+# Collected answers live in staging/ (git-ignored) until they are filed into data/records.
 references:
-	@for f in staging/openrouter_*.jsonl; do \
-		[ -e "$$f" ] || { echo "no staging/openrouter_*.jsonl files"; exit 0; }; \
-		$(PYTHON) -m pipeline.collect slim "$$f" "data/references/$$(basename $$f)"; \
-	done
+	$(PYTHON) -m pipeline.collect import staging/*.jsonl
 
 bank:
 	$(PYTHON) -m pipeline.build

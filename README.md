@@ -14,18 +14,18 @@ core/       评分核心：一个纯 Go 函数 trace.Categorize，原生用于 A
 backend/    极简无状态 REST API（Go + gin）：/v1/categorize、/v1/stamp、/v1/submissions
 pipeline/   离线 Python：采集参考回答、构建指纹库、导出二进制指纹库与对照测试
 schema/     二进制指纹库格式（FlatBuffers）
-data/       参考回答（references/ 与两份早期数据）和构建好的指纹库（bank/）
+data/       参考回答（records/<厂商>/<模型>/<渠道>.jsonl）和构建好的指纹库（bank/）
 ```
 
 设计意图与各项决策的理由见 [docs/design.md](docs/design.md)（英文）。
 
-数据流：`pipeline.collect` 采集 → `data/references/*.jsonl` → `pipeline.build` → `data/bank/bank.fb` → `core`（浏览器与 API 共用）。
+数据流：`pipeline.collect` 采集 → `data/records/` → `pipeline.build` → `data/bank/bank.fb` → `core`（浏览器与 API 共用）。
 
 ## 本地运行
 
 ```bash
 python -m pip install -r pipeline/requirements.txt   # 另需 go、tinygo（含 binaryen 的 wasm-opt）、node
-make references bank   # 把 staging/ 中采集到的回答导入 data/references，重建指纹库与对照测试
+make references bank   # 把 staging/ 中采集到的回答导入 data/records，重建指纹库与对照测试
 make test              # Go 核心与 API、WebAssembly 对照、网站测试
 make dev               # 本地运行静态网站；make site 生成 web/dist
 make api               # 可选：本地运行 API（:8080）

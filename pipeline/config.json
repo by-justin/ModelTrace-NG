@@ -1,36 +1,135 @@
 {
-  "_comment": "Which reference answers go into the bank and how labels are named. Read by pipeline.references.",
-  "sources": [
-    {"path": "data/gpt_reference.jsonl", "provider": "Codex subscription"},
-    {"path": "data/claude_reference.jsonl", "provider": "OAIPro (reseller)"},
-    {"path": "data/references/openrouter_gpt.jsonl"},
-    {"path": "data/references/openrouter_google.jsonl"},
-    {"path": "data/references/openrouter_others.jsonl"}
-  ],
+  "_comment": "How reference records (data/records) become bank entries: vendors, merge groups, route filters. Read by pipeline.references.",
   "families": {
-    "openai": {"name": "OpenAI", "prefixes": ["gpt"], "routes": ["codex", "openai"]},
-    "anthropic": {"name": "Anthropic", "prefixes": ["claude"], "routes": ["anthropic"]},
-    "google": {"name": "Google", "prefixes": ["gemini", "gemma"], "routes": ["google-vertex", "google-ai-studio"]},
-    "meta": {"name": "Meta", "prefixes": ["muse"], "routes": []},
-    "deepseek": {"name": "DeepSeek", "prefixes": ["deepseek"], "routes": []},
-    "nvidia": {"name": "NVIDIA", "prefixes": ["nemotron"], "routes": ["nvidia"]},
-    "baidu": {"name": "Baidu", "prefixes": ["ernie"], "routes": ["baidu"]},
-    "cohere": {"name": "Cohere", "prefixes": ["north"], "routes": ["cohere"]},
-    "liquid": {"name": "Liquid AI", "prefixes": ["lfm"], "routes": ["liquid"]},
-    "inclusionai": {"name": "inclusionAI", "prefixes": ["ling"], "routes": ["antdigital"]},
-    "particle": {"name": "Particle AI", "prefixes": ["particle"], "routes": ["particle-ai"]},
-    "recursive": {"name": "Recursive", "prefixes": ["flint"], "routes": ["recursive"]}
+    "openai": {
+      "name": "OpenAI",
+      "prefixes": [
+        "gpt"
+      ],
+      "routes": [
+        "codex",
+        "openai"
+      ]
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "prefixes": [
+        "claude"
+      ],
+      "routes": [
+        "anthropic"
+      ]
+    },
+    "google": {
+      "name": "Google",
+      "prefixes": [
+        "gemini",
+        "gemma"
+      ],
+      "routes": [
+        "google-vertex",
+        "google-ai-studio"
+      ]
+    },
+    "meta": {
+      "name": "Meta",
+      "prefixes": [
+        "muse"
+      ],
+      "routes": []
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "prefixes": [
+        "deepseek"
+      ],
+      "routes": []
+    },
+    "nvidia": {
+      "name": "NVIDIA",
+      "prefixes": [
+        "nemotron"
+      ],
+      "routes": [
+        "nvidia"
+      ]
+    },
+    "baidu": {
+      "name": "Baidu",
+      "prefixes": [
+        "ernie"
+      ],
+      "routes": [
+        "baidu"
+      ]
+    },
+    "cohere": {
+      "name": "Cohere",
+      "prefixes": [
+        "north"
+      ],
+      "routes": [
+        "cohere"
+      ]
+    },
+    "liquid": {
+      "name": "Liquid AI",
+      "prefixes": [
+        "lfm"
+      ],
+      "routes": [
+        "liquid"
+      ]
+    },
+    "inclusionai": {
+      "name": "inclusionAI",
+      "prefixes": [
+        "ling"
+      ],
+      "routes": [
+        "antdigital"
+      ]
+    },
+    "particle": {
+      "name": "Particle AI",
+      "prefixes": [
+        "particle"
+      ],
+      "routes": [
+        "particle-ai"
+      ]
+    },
+    "recursive": {
+      "name": "Recursive",
+      "prefixes": [
+        "flint"
+      ],
+      "routes": [
+        "recursive"
+      ]
+    }
   },
-  "partner_routes": ["google-vertex"],
-  "reseller_providers": ["oaipro"],
+  "partner_routes": [
+    "google-vertex"
+  ],
+  "reseller_providers": [
+    "oaipro"
+  ],
   "merge": {
     "gpt-6-astra+gpt-6.1-sol": {
-      "members": ["gpt-6-astra", "gpt-6-astra@api", "gpt-6.1-sol"],
+      "members": [
+        "gpt-6-astra",
+        "gpt-6-astra@api",
+        "gpt-6.1-sol"
+      ],
       "display_name": "GPT-6 Astra / GPT-6.1 Sol",
       "reason": "Indistinguishable fingerprints (3-answer head-to-head 38-50%, pooled affinity 0.9984-0.9986). Decided 2026-11-19."
     },
     "gemini-3.7-flash+gemini-3.8-flash": {
-      "members": ["gemini-3.7-flash", "gemini-3.8-flash"],
+      "members": [
+        "gemini-3.7-flash",
+        "gemini-3.8-flash"
+      ],
       "display_name": "Gemini 3.7 Flash / 3.8 Flash",
       "reason": "Pooled affinity 0.9983; 3.8 named 3.7 in 6 of 12 Gemini-only tests. Decided 2026-11-19."
     }
@@ -42,7 +141,11 @@
     "gemini-4-carbon": "google-ai-studio",
     "gemini-4-argon": "google-ai-studio"
   },
-  "comparison_only_markers": ["@api", "@vertex", "@aistudio"],
+  "comparison_only_markers": [
+    "@api",
+    "@vertex",
+    "@aistudio"
+  ],
   "display_names": {
     "claude-haiku-4-5-20251001": "Claude Haiku 4.5"
   }

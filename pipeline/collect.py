@@ -4,7 +4,7 @@
         --model openai/gpt-6-luna --provider openai/flex --label gpt-6-luna \\
         --out staging/openrouter_gpt.jsonl --budget 0.5 [--effort low] [--temperature 1.0] [--top-p 1.0] [--top-k 64]
 
-    python -m pipeline.collect slim staging/openrouter_gpt.jsonl data/references/openrouter_gpt.jsonl
+    python -m pipeline.collect import staging/openrouter_gpt.jsonl [more staging files…]
 
 Rules (see pipeline/references.py for how rows are used):
 - the provider is pinned (no fallbacks), reasoning effort and sampling stay at the route's defaults
@@ -29,13 +29,14 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import records
 from .parsing import minimum_numbers, parse_numbers
+from .references import family_of, load_config
 from .suite import fingerprint_suite
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 RATIO_RANGE = (0.8, 1.2)
 MAX_ATTEMPTS = 3
-SLIM_REJECTED_CHARS = 2000
 
 
 def pattern_reasons(numbers: list[int]) -> list[str]:
@@ -58,10 +59,6 @@ def pattern_reasons(numbers: list[int]) -> list[str]:
     return reasons
 
 
-def hard_reasons(row: dict) -> list[str]:
-    return [q for q in row.get("quality_reasons", []) if not q.startswith("count_ratio")]
-
-
 def _call(body: dict) -> dict:
     key = Path(os.environ["OPENROUTER_KEY_FILE"]).expanduser().read_text().strip()
     request = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
@@ -80,7 +77,7 @@ def run(args: argparse.Namespace) -> None:
                 row = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if row["source"] == args.label and row.get("openrouter_provider_tag") == args.provider and not hard_reasons(row):
+            if row["source"] == args.label and row.get("openrouter_provider_tag") == args.provider and not records.hard_reasons(row):
                 done.add(row["challenge_id"])
     tasks = [t for t in tasks if t["challenge_id"] not in done]
     lock, spend = threading.Lock(), [0.0]
@@ -163,7 +160,7 @@ def run(args: argparse.Namespace) -> None:
                     handle.write(json.dumps(row, ensure_ascii=False) + "\n")
                 stats["accepted" if row["reference_valid"] else "rejected"] += 1
             print(f"  {task['challenge_id']}: {len(numbers)}/{task['expected_count']} "
-                  f"{'OK' if row['reference_valid'] else 'REJECT ' + ','.join(hard_reasons(row))}", flush=True)
+                  f"{'OK' if row['reference_valid'] else 'REJECT ' + ','.join(records.hard_reasons(row))}", flush=True)
             if row["reference_valid"]:
                 return
 
@@ -172,27 +169,17 @@ def run(args: argparse.Namespace) -> None:
     print(json.dumps({"label": args.label, **stats, "spend_usd": round(spend[0], 4), "already_done": len(done)}))
 
 
-def slim(src: Path, dst: Path) -> None:
-    """Copy a staging file into data/references in compact form.
+def import_records(paths: list[Path]) -> None:
+    """Import staging files (raw collector output) into data/records.
 
-    Prompts are dropped (pipeline.suite regenerates them from challenge_id) and rejected answers keep
-    only their first characters; accepted answers are copied in full.
+    Rows are grouped by model label and route; each group's file under data/records is replaced
+    with the group's rows in collection order (see pipeline.records for the format).
     """
-    kept = 0
-    with dst.open("w", encoding="utf-8") as out:
-        for line in src.read_text(encoding="utf-8").splitlines():
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            for key in ("prompt", "base_prompt", "system_prompt", "user_prefix"):
-                row.pop(key, None)
-            if hard_reasons(row) and len(row.get("text", "")) > SLIM_REJECTED_CHARS:
-                row["text"] = row["text"][:SLIM_REJECTED_CHARS]
-                row["text_truncated"] = True
-            out.write(json.dumps(row, ensure_ascii=False) + "\n")
-            kept += 1
-    print(f"{dst}: {kept} rows")
+    config = load_config()
+    rows = [records.normalize(row, family_of(row.get("label", row.get("source")), config))
+            for path in paths for row in records.read_jsonl(path)]
+    for path, count in sorted(records.write(rows).items()):
+        print(f"{path.relative_to(records.ROOT)}: {count} rows")
 
 
 def main() -> None:
@@ -211,11 +198,10 @@ def main() -> None:
     r.add_argument("--max-tokens", type=int, default=32000)
     r.add_argument("--tasks", default="all", help="'all' or comma-separated challenge ids")
     r.add_argument("--workers", type=int, default=4)
-    s = sub.add_parser("slim", help="copy a staging file into data/references")
-    s.add_argument("src", type=Path)
-    s.add_argument("dst", type=Path)
+    i = sub.add_parser("import", help="import staging files into data/records")
+    i.add_argument("paths", type=Path, nargs="+")
     args = parser.parse_args()
-    run(args) if args.command == "run" else slim(args.src, args.dst)
+    run(args) if args.command == "run" else import_records(args.paths)
 
 
 if __name__ == "__main__":

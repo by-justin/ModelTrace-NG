@@ -1,9 +1,10 @@
-"""Load reference answers into bank rows, following pipeline/config.json.
+"""Load reference records (data/records, see pipeline.records) into bank rows, following
+pipeline/config.json.
 
 Rules, in order:
 1. route_filter: for listed labels keep only rows from that OpenRouter provider tag.
-2. Validity: rows with quality_reasons are valid when no reason other than the count ratio applies
-   (the count ratio is informational); older rows use strict_valid.
+2. Validity: a row is valid when no quality reason other than the count ratio applies
+   (the count ratio is informational).
 3. First valid answer per (label, prompt) wins, so retries cannot cherry-pick.
 4. Labels marked comparison-only (e.g. "@vertex") are dropped unless they belong to a merge group.
 5. Only complete labels are kept: 36 prompts covering all 12 prompt setups three times each.
@@ -15,6 +16,7 @@ import collections
 import json
 from pathlib import Path
 
+from . import records
 from .parsing import count_numbers, parse_numbers
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,45 +48,22 @@ def route_class(row: dict, family_id: str, config: dict) -> str:
     return "host"
 
 
-def _valid(row: dict) -> bool:
-    if "quality_reasons" in row:
-        return not [q for q in row["quality_reasons"] if not q.startswith("count_ratio")]
-    return bool(row.get("strict_valid"))
-
-
-def _provider_name(row: dict) -> str:
-    """Human-readable route, e.g. "OpenRouter → OpenAI" or "Codex subscription"."""
-    if row.get("openrouter_provider_tag"):
-        return "OpenRouter → " + str(row["provider"]).split(":", 1)[-1]
-    return row.get("_provider") or str(row.get("provider") or "")
-
-
-def _read_jsonl(path: Path):
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError:
-                continue  # a partially written line
-
-
-def load_rows(config: dict | None = None, root: Path = ROOT) -> tuple[list[dict], dict]:
+def load_rows(config: dict | None = None, root: Path = records.RECORDS) -> tuple[list[dict], dict]:
     config = config or load_config()
     alias = {member: group for group, spec in config["merge"].items() for member in spec["members"]}
     route_filter = {k: v for k, v in config["route_filter"].items() if not k.startswith("_")}
     markers = tuple(config["comparison_only_markers"])
 
     chosen: dict[tuple[str, str], dict] = {}
-    for source in config["sources"]:
-        for row in _read_jsonl(root / source["path"]):
-            label = row["source"]
-            if label in route_filter and row.get("openrouter_provider_tag") != route_filter[label]:
-                continue
-            if label not in alias and any(marker in label for marker in markers):
-                continue
-            if not _valid(row) or (label, row["challenge_id"]) in chosen:
-                continue
-            chosen[(label, row["challenge_id"])] = {**row, "_provider": source.get("provider")}
+    for row in records.iterate(root):
+        label = row["label"]
+        if label in route_filter and row.get("openrouter_provider_tag") != route_filter[label]:
+            continue
+        if label not in alias and any(marker in label for marker in markers):
+            continue
+        if records.hard_reasons(row) or (label, row["challenge_id"]) in chosen:
+            continue
+        chosen[(label, row["challenge_id"])] = row
 
     per_label = collections.defaultdict(list)
     for (label, _), row in chosen.items():
@@ -111,7 +90,7 @@ def load_rows(config: dict | None = None, root: Path = ROOT) -> tuple[list[dict]
                 "numbers": numbers,
                 "counts": count_numbers(numbers),
                 "route_class": route_class(row, family_id, config),
-                "provider": _provider_name(row),
+                "provider": row["provider_name"],
                 "collected_at": str(row.get("collected_at", ""))[:10],
             })
     # a merge group is only kept when every member is complete
