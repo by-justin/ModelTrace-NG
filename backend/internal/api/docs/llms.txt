@@ -1,0 +1,24 @@
+# ModelTrace API
+
+> Guess which language model produced a set of "pick random numbers" replies. Stateless JSON API.
+> Full contract: /openapi.yaml
+
+## Identify a model (no key, nothing stored)
+
+1. Ask the model, in a fresh conversation, for N integers between 1 and 355 (N around 300), chosen
+   one at a time with no pattern, and keep its full reply. Do this three times with different N.
+2. POST /v1/categorize
+   {"replies": [{"text": "<full reply>", "expected_count": 307}, ...]}
+3. Read `tier` first: match | family | uncertain | unknown | none. `model` and `family` hold the best
+   guesses with probabilities; `candidates` lists the top 5. Only models in /v1/models can be named.
+
+## Contribute a sample (optional)
+
+1. Build the JSON body you will send and hash its exact bytes: h = sha256(body) as lowercase hex.
+2. GET /v1/stamp?h=<h>  -> ALTCHA challenge
+3. Solve it with an ALTCHA library (altcha-lib for JS, altcha-lib-go, altcha for Python).
+4. POST /v1/submissions with the same body and header `Altcha: base64(JSON {algorithm, challenge, number, salt, signature})`.
+   202 means stored. A stamp works once and expires after 10 minutes. The server records the body,
+   your IP address and request headers such as User-Agent.
+
+Errors are application/problem+json with a `detail` that says what to fix. 429 means busy: wait for Retry-After.
