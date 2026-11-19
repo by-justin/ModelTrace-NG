@@ -18,6 +18,8 @@ data/       参考回答（references/ 与两份早期数据）和构建好的�
 codex-plugin/  ModelTrace Guard，Codex 任务内监测插件（使用冻结的 data/unified_bank.json）
 ```
 
+设计意图与各项决策的理由见 [docs/design.md](docs/design.md)（英文）。
+
 数据流：`pipeline.collect` 采集 → `data/references/*.jsonl` → `pipeline.build` → `data/bank/bank.fb` → `core`（浏览器与 API 共用）。
 
 ## 本地运行
