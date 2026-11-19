@@ -29,7 +29,7 @@ for (const c of golden.cases) {
   const e = c.expected;
   const ok = out[0] === e.used && tiers[out[1]] === e.tier &&
     (e.used === 0 || (out[2] === e.top && out[3] === e.family_top && Math.abs(out[4] - e.known) < 1e-6 &&
-      e.probs.every((p, i) => Math.abs(out[7 + i] - p) < 1e-6)));
+      (out[5] === 1) === e.low_fit && e.probs.every((p, i) => Math.abs(out[8 + i] - p) < 1e-6)));
   if (!ok) { failures++; console.error("FAIL", c.name, Array.from(out.slice(0, 5)), e.used, e.tier); }
 }
 const sample = enc.encode("12, 300, 7 and 9 10");

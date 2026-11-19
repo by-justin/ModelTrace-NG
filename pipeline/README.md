@@ -34,8 +34,9 @@ Two versions that cannot be told apart (pooled affinity around 0.998) go into `c
 
 ## Verdict levels
 
-`scoring.tier()` turns a result into one of: `match` (top model probability ≥ 0.80),
-`family` (the vendor is clear: family probability ≥ 0.80), `uncertain`, or `unknown` (the
-answers fit no model as well as 95% of genuine held-out answers do). Anything but `match`
-asks the user to name the model. The family probability averages the family classifier with
+`scoring.tier()` turns a result into one of: `match` (top model probability ≥ 0.80 and a normal
+fit), `family` (the vendor is clear: family probability ≥ 0.80), `uncertain`, or `unknown`. A
+"weak fit" means the closest model fits worse than 99% of genuine held-out answers; it turns a
+would-be match into `family` (probably an unlisted version of that vendor), and only a weak fit
+with no clear vendor is `unknown`. Anything but `match` asks the user to name the model. The family probability averages the family classifier with
 the model probabilities summed per family.

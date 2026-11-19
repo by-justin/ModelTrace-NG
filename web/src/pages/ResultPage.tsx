@@ -30,7 +30,6 @@ export function ResultPage() {
   const tier = result.tier;
   const ranked = result.probs.map((p, i) => ({ p, m: bank.models[i] })).sort((a, b) => b.p - a.p).slice(0, 5);
   const vendors = result.familyProbs.map((p, i) => ({ p, f: bank.families[i] })).sort((a, b) => b.p - a.p).slice(0, 4);
-  const knownOk = tier !== "unknown";
 
   const identify = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,10 +53,13 @@ export function ResultPage() {
         <span className={`chip tier-${tier}`}>{t(`result.tiers.${tier}.label`)}</span>
         <h1>{t(`result.tiers.${tier}.title`, { model: model.displayName, family: family.name })}</h1>
         <p className="lead">{t(`result.tiers.${tier}.text`)}</p>
+        {tier === "family" && (
+          <p className="muted">{t("result.closestKnown", { model: model.displayName, probability: pct(result.probs[result.top]) })}</p>
+        )}
         <div className="tiles">
           <div className="tile"><span className="overline">{t("result.best")}</span><strong>{pct(result.probs[result.top])}</strong><span className="muted">{model.displayName}</span></div>
           <div className="tile"><span className="overline">{t("result.vendor")}</span><strong>{pct(result.familyProbs[result.familyTop])}</strong><span className="muted">{family.name}</span></div>
-          <div className="tile"><span className="overline">{t("result.known")}</span><strong>{knownOk ? t("result.yes") : t("result.no")}</strong><span className="muted">{knownOk ? t("result.knownYes") : t("result.knownNo")}</span></div>
+          <div className="tile"><span className="overline">{t("result.fit")}</span><strong>{result.lowFit ? t("result.fitWeak") : t("result.fitNormal")}</strong><span className="muted">{result.lowFit ? t("result.fitWeakText") : t("result.fitNormalText")}</span></div>
           <div className="tile"><span className="overline">{t("result.used")}</span><strong>{t("result.usedValue", { used: result.used, total: result.diagnostics.length })}</strong>
             <span className="muted">{result.diagnostics.map((d) => d.parsed).join(" · ")}</span></div>
         </div>

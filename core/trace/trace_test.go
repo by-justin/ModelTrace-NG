@@ -20,6 +20,7 @@ type goldenFile struct {
 			FamilyTop   *int        `json:"family_top"`
 			FamilyProbs []float64   `json:"family_probs"`
 			Known       float64     `json:"known"`
+			LowFit      bool        `json:"low_fit"`
 			Diagnostics []ReplyDiag `json:"diagnostics"`
 		} `json:"expected"`
 	} `json:"cases"`
@@ -70,6 +71,9 @@ func TestGolden(t *testing.T) {
 		}
 		if got.Top != *want.Top || got.FamilyTop != *want.FamilyTop {
 			t.Errorf("%s: top/family = %d/%d, want %d/%d", c.Name, got.Top, got.FamilyTop, *want.Top, *want.FamilyTop)
+		}
+		if got.LowFit != want.LowFit {
+			t.Errorf("%s: low_fit = %v, want %v", c.Name, got.LowFit, want.LowFit)
 		}
 		if math.Abs(got.Known-want.Known) > tol {
 			t.Errorf("%s: known = %.9f, want %.9f", c.Name, got.Known, want.Known)

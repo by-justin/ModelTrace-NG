@@ -53,7 +53,7 @@ web/node_modules: web/package-lock.json
 	cd web && $(NPM) ci
 	@touch web/node_modules
 
-test-web: web/node_modules
+test-web: $(WASM) web/node_modules
 	cd web && $(NPM) test
 
 site: $(WASM) web/node_modules

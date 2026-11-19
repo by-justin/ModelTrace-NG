@@ -28,7 +28,7 @@ from .scoring import log_loss_beta, reply_scores
 
 ORDERED_WEIGHT = 0.25
 NUISANCE_RANK = 2
-UNKNOWN_PERCENTILE = 5   # known-model score threshold: 5% of genuine held-out tests fall below it
+UNKNOWN_PERCENTILE = 1   # weak-fit threshold: 1% of genuine held-out tests fall below it ("by a wide margin")
 TIER_MATCH = 0.80        # top model probability for a "match" verdict
 TIER_FAMILY = 0.80       # top family probability for a "family" verdict
 OUT_DIR = ROOT / "data" / "bank"

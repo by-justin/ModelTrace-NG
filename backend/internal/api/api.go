@@ -147,6 +147,7 @@ type categorizeResponse struct {
 	Model       *candidate        `json:"model"`
 	Family      *familyProb       `json:"family"`
 	Known       float64           `json:"known"`
+	LowFit      bool              `json:"low_fit"`
 	Candidates  []candidate       `json:"candidates"`
 	Families    []familyProb      `json:"families"`
 	Diagnostics []trace.ReplyDiag `json:"diagnostics"`
@@ -176,7 +177,7 @@ func (s *Server) categorize(c *gin.Context) {
 }
 
 func (s *Server) describe(r trace.Result) categorizeResponse {
-	out := categorizeResponse{BankVersion: s.bank.Version, Used: r.Used, Tier: r.Tier, Known: r.Known,
+	out := categorizeResponse{BankVersion: s.bank.Version, Used: r.Used, Tier: r.Tier, Known: r.Known, LowFit: r.LowFit,
 		Diagnostics: r.Diagnostics, Candidates: []candidate{}, Families: []familyProb{}}
 	if r.Used == 0 {
 		return out

@@ -62,17 +62,26 @@ def reply_scores(numbers: list[int], bank: dict) -> dict:
 TIERS = ("none", "match", "family", "uncertain", "unknown")
 
 
+def low_fit(used: int, known: float, bank: dict) -> bool:
+    """The closest model fits worse than ~99% of genuine held-out answers."""
+    return used > 0 and known < float(bank["unknown_threshold"][min(used, 3) - 1])
+
+
 def tier(used: int, top_prob: float, family_prob: float, known: float, bank: dict) -> str:
-    """Verdict level. Anything but "match" asks the user to say which model it was."""
+    """Verdict level. Anything but "match" asks the user to say which model it was.
+
+    A weak fit alone never hides a clear vendor: it turns a would-be match into "family"
+    (likely an unlisted version of that vendor), and only a weak fit with no clear vendor is
+    "unknown" — unsure by a wide margin.
+    """
     if used == 0:
         return "none"
-    if known < float(bank["unknown_threshold"][min(used, 3) - 1]):
-        return "unknown"          # fits no model in the bank as well as genuine answers do
+    vendor_clear = family_prob >= float(bank["tier_family"])
+    if low_fit(used, known, bank):
+        return "family" if vendor_clear else "unknown"
     if top_prob >= float(bank["tier_match"]):
         return "match"
-    if family_prob >= float(bank["tier_family"]):
-        return "family"           # the vendor is clear, the version is not
-    return "uncertain"
+    return "family" if vendor_clear else "uncertain"
 
 
 def bank_family_index(bank: dict, model: dict) -> int:
@@ -112,6 +121,7 @@ def analyze(replies: list[dict], bank: dict) -> dict:
     return {
         "used": used, "probs": probs, "top": top,
         "family_probs": family_probs, "family_top": family_top, "known": known,
+        "low_fit": low_fit(used, known, bank),
         "tier": tier(used, float(probs[top]), float(family_probs[family_top]), known, bank),
         "diagnostics": diagnostics,
     }

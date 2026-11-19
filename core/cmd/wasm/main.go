@@ -9,7 +9,7 @@
 //   - minimum(expected) returns how many numbers a reply needs to count.
 //   - categorize(n) reads replies from the first n bytes — u32 count, then per reply u32 expected
 //     count, u32 byte length, UTF-8 text — and returns how many float64 values it wrote at result().
-//     Layout: used, tier, top, family_top, known, models M, families F, probs[M], family_probs[F],
+//     Layout: used, tier, top, family_top, known, low_fit (0/1), models M, families F, probs[M], family_probs[F],
 //     replies R, then per reply: parsed, minimum, accepted (0/1), top.
 package main
 
@@ -95,7 +95,11 @@ func categorize(n int32) int32 {
 	}
 	r := trace.Categorize(bank, replies)
 	output = output[:0]
-	output = append(output, float64(r.Used), float64(r.Tier), float64(r.Top), float64(r.FamilyTop), r.Known,
+	lowFit := 0.0
+	if r.LowFit {
+		lowFit = 1
+	}
+	output = append(output, float64(r.Used), float64(r.Tier), float64(r.Top), float64(r.FamilyTop), r.Known, lowFit,
 		float64(len(bank.Models)), float64(len(bank.Families)))
 	output = appendOrZeros(output, r.Probs, len(bank.Models))
 	output = appendOrZeros(output, r.FamilyProbs, len(bank.Families))

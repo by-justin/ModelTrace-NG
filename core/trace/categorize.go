@@ -57,6 +57,7 @@ type Result struct {
 	FamilyTop   int         `json:"family_top"`
 	FamilyProbs []float64   `json:"family_probs,omitempty"`
 	Known       float64     `json:"known"`
+	LowFit      bool        `json:"low_fit"` // closest model fits worse than ~99% of genuine answers
 	Diagnostics []ReplyDiag `json:"diagnostics"`
 }
 
@@ -113,12 +114,18 @@ func Categorize(b *Bank, replies []Reply) Result {
 	res.FamilyTop = argmax(res.FamilyProbs)
 	res.Known = raw[argmax(raw)]
 
+	// A weak fit never hides a clear vendor: it downgrades a match to TierFamily, and only a weak
+	// fit with no clear vendor is TierUnknown (mirrors pipeline/scoring.py tier()).
+	res.LowFit = res.Known < b.unknownThreshold[q-1]
+	vendorClear := res.FamilyProbs[res.FamilyTop] >= b.tierFamily
 	switch {
-	case res.Known < b.unknownThreshold[q-1]:
+	case res.LowFit && vendorClear:
+		res.Tier = TierFamily
+	case res.LowFit:
 		res.Tier = TierUnknown
 	case res.Probs[res.Top] >= b.tierMatch:
 		res.Tier = TierMatch
-	case res.FamilyProbs[res.FamilyTop] >= b.tierFamily:
+	case vendorClear:
 		res.Tier = TierFamily
 	default:
 		res.Tier = TierUncertain

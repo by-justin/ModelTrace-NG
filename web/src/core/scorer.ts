@@ -44,6 +44,7 @@ export interface Result {
   top: number;
   familyTop: number;
   known: number;
+  lowFit: boolean;   // the closest model fits worse than ~99% of genuine answers
   probs: number[];
   familyProbs: number[];
   diagnostics: ReplyDiag[];
@@ -99,16 +100,19 @@ export class Scorer {
   private constructor(private readonly x: Exports, readonly bank: BankInfo) {}
 
   static async load(base: string = import.meta.env.BASE_URL): Promise<Scorer> {
-    const [wasm, bankBytes] = await Promise.all([
+    const [wasm, bank] = await Promise.all([
       fetch(`${base}trace.wasm`).then((r) => r.arrayBuffer()),
       fetch(`${base}bank.fb`).then((r) => r.arrayBuffer()),
     ]);
+    return Scorer.fromBytes(wasm, new Uint8Array(bank));
+  }
+
+  static async fromBytes(wasm: BufferSource, bank: Uint8Array): Promise<Scorer> {
     const { instance } = await WebAssembly.instantiate(wasm, {});
     const x = instance.exports as unknown as Exports;
     x._initialize();
-    const bytes = new Uint8Array(bankBytes);
-    const scorer = new Scorer(x, readBank(bytes));
-    if (x.load_bank(scorer.put(bytes)) <= 0) throw new Error("bank failed to load");
+    const scorer = new Scorer(x, readBank(bank));
+    if (x.load_bank(scorer.put(bank)) <= 0) throw new Error("bank failed to load");
     return scorer;
   }
 
@@ -143,15 +147,15 @@ export class Scorer {
     });
     const n = this.x.categorize(this.put(buf));
     const out = new Float64Array(this.x.memory.buffer, this.x.result(), n).slice();
-    const models = out[5];
-    const families = out[6];
-    const probs = Array.from(out.subarray(7, 7 + models));
-    const familyProbs = Array.from(out.subarray(7 + models, 7 + models + families));
-    let p = 7 + models + families;
+    const models = out[6];
+    const families = out[7];
+    const probs = Array.from(out.subarray(8, 8 + models));
+    const familyProbs = Array.from(out.subarray(8 + models, 8 + models + families));
+    let p = 8 + models + families;
     const diagnostics: ReplyDiag[] = [];
     for (let i = 0, count = out[p++]; i < count; i++, p += 4) {
       diagnostics.push({ parsed: out[p], minimum: out[p + 1], accepted: out[p + 2] === 1, top: out[p + 3] });
     }
-    return { used: out[0], tier: TIERS[out[1]], top: out[2], familyTop: out[3], known: out[4], probs, familyProbs, diagnostics };
+    return { used: out[0], tier: TIERS[out[1]], top: out[2], familyTop: out[3], known: out[4], lowFit: out[5] === 1, probs, familyProbs, diagnostics };
   }
 }

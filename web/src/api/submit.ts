@@ -57,6 +57,7 @@ export async function submissionBody(input: SubmissionInput): Promise<object> {
       used: result.used,
       tier: result.tier,
       known: result.known,
+      low_fit: result.lowFit,
       model: result.used ? bank.models[result.top].id : null,
       family: result.used ? bank.families[result.familyTop].id : null,
       family_probability: result.used ? result.familyProbs[result.familyTop] : null,

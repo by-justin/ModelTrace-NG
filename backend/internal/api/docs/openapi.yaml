@@ -55,11 +55,12 @@ paths:
                     enum: [none, match, family, uncertain, unknown]
                     description: |
                       match: one model (or merge group) clearly fits. family: the vendor is clear, the version
-                      is not. uncertain: neither. unknown: fits no model in the bank as well as genuine
-                      answers do. none: no reply had enough numbers.
+                      is not (or the closest model fits weakly). uncertain: neither is clear. unknown: weak fit
+                      and no clear vendor. none: no reply had enough numbers.
                   model: {$ref: "#/components/schemas/Candidate"}
                   family: {$ref: "#/components/schemas/FamilyProb"}
-                  known: {type: number, description: Similarity to the closest model; compared with a threshold for "unknown".}
+                  known: {type: number, description: Similarity to the closest model.}
+                  low_fit: {type: boolean, description: The closest model fits worse than ~99% of genuine answers.}
                   candidates: {type: array, items: {$ref: "#/components/schemas/Candidate"}, description: Top 5 models.}
                   families: {type: array, items: {$ref: "#/components/schemas/FamilyProb"}}
                   diagnostics:

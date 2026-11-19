@@ -50,10 +50,14 @@ job, and nothing in production needs a write path besides submissions.
   summed model probabilities are stronger on known models. Together: 99.4% vendor accuracy on
   held-out prompt setups and 76% on models left out entirely (three replies), versus 95.6% / 76.5%
   for the classifier alone.
-- **Known-model check:** the best unscaled similarity, against a threshold that 5% of genuine
-  held-out answers fall below.
-- **Verdict levels:** `match` (top model ≥ 0.80), `family` (vendor ≥ 0.80), `uncertain`,
-  `unknown`. Anything but `match` asks the user which model it was.
+- **Fit check:** the best unscaled similarity, against a threshold that 1% of genuine held-out
+  answers fall below. It started at 5%, which flagged one genuine test in twenty and overrode
+  clear results (a two-reply GPT-6 Astra test came back "unknown" at 99.5% / OpenAI 93.6%).
+- **Verdict levels:** `match` (top model ≥ 0.80 and a normal fit), `family` (vendor ≥ 0.80),
+  `uncertain`, `unknown`. A weak fit never hides a clear vendor: it turns a would-be match into
+  `family` (probably an unlisted version of that vendor); only a weak fit with no clear vendor is
+  `unknown`, matching "unsure by a wide margin". Anything but `match` asks the user which model
+  it was.
 - **Merge groups:** versions that cannot be told apart are one bank entry, reported together.
   Threshold in practice: pooled affinity around 0.998, the same as one model collected twice.
   Current groups: GPT-6 Astra + GPT-6.1 Sol; Gemini 3.7 Flash + 3.8 Flash.
