@@ -1,6 +1,9 @@
 package trace
 
-import "math"
+import (
+	"errors"
+	"math"
+)
 
 // Tier is the verdict level. Anything but TierMatch should ask the user which model it was.
 type Tier uint8
@@ -19,6 +22,17 @@ func (t Tier) String() string { return tierNames[t] }
 
 // MarshalText makes a Tier encode as its name in JSON.
 func (t Tier) MarshalText() ([]byte, error) { return []byte(t.String()), nil }
+
+// UnmarshalText decodes a Tier from its name.
+func (t *Tier) UnmarshalText(text []byte) error {
+	for i, name := range tierNames {
+		if name == string(text) {
+			*t = Tier(i)
+			return nil
+		}
+	}
+	return errors.New("trace: unknown tier " + string(text))
+}
 
 // Reply is one model reply to one challenge.
 type Reply struct {
