@@ -121,5 +121,5 @@ and the known-model check were added.
 - Finish the models still collecting, rebuild the bank, regenerate golden cases.
 - Possible later: the "where your answers land" map (needs a 2D projection stored in the bank),
   additional probe types alongside the number task, versioned banks with scheduled re-collection.
-- The Codex plugin keeps its frozen bank (`data/unified_bank.json`) and the two files it bundles
-  from `static/`; moving it onto the Go core is a separate change.
+- The Codex plugin (ModelTrace Guard) was removed with its frozen bank and legacy JavaScript
+  scorer; a future plugin should call the API or embed the Go core.

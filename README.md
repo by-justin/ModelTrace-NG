@@ -15,7 +15,6 @@ backend/    极简无状态 REST API（Go + gin）：/v1/categorize、/v1/stamp�
 pipeline/   离线 Python：采集参考回答、构建指纹库、导出二进制指纹库与对照测试
 schema/     二进制指纹库格式（FlatBuffers）
 data/       参考回答（references/ 与两份早期数据）和构建好的指纹库（bank/）
-codex-plugin/  ModelTrace Guard，Codex 任务内监测插件（使用冻结的 data/unified_bank.json）
 ```
 
 设计意图与各项决策的理由见 [docs/design.md](docs/design.md)（英文）。
@@ -48,10 +47,6 @@ make api               # 可选：本地运行 API（:8080）
 ### 来源
 
 每个模型注明回答来源：官方 API 或订阅、厂商授权的云平台、运行全精度权重的第三方托管，或转售渠道。早期的 Claude 数据经由转售商采集，在与官方来源核对前标为“转售 · 未验证”。
-
-## Codex 任务内监测插件
-
-[ModelTrace Guard](codex-plugin/modeltrace-guard/README.md) 在后台从 Codex 任务的冻结快照 fork 出临时分支做指纹检测，正常结果静默保存，异常时提醒并复测。安装、配置和结果解释见[插件使用说明](codex-plugin/modeltrace-guard/README.md)。
 
 ## 声明
 
