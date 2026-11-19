@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/bank.fb
+public/trace.wasm
+*.tsbuildinfo

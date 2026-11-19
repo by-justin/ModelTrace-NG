@@ -1,0 +1,275 @@
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+
+const en = {
+  nav: { test: "Test", models: "Models", method: "How it works", language: "中文", languageLabel: "Switch language", github: "GitHub repository" },
+  common: { loading: "Loading the fingerprint bank…", loadError: "The fingerprint bank could not be loaded. Reload the page to try again." },
+  home: {
+    title: "Which model is really answering?",
+    lead: "Ask a model for three lists of numbers. Every model has habits in how it picks them, and ModelTrace compares those habits with fingerprints collected from official sources.",
+    local: "Runs in your browser",
+    bank: "{{count}} models · bank {{version}}",
+    steps: [
+      { title: "Open a fresh chat", text: "In the app or service you want to check, with no custom instructions." },
+      { title: "Send each challenge", text: "One prompt per message, ideally one chat per challenge." },
+      { title: "Paste the full replies", text: "Each reply is checked as you paste. No account or API key needed." },
+    ],
+    challenges: "Three challenges",
+    newChallenges: "New challenges",
+    promptLanguage: "Prompt language",
+    challenge: "Challenge {{n}}",
+    asks: "asks for {{count}} numbers",
+    send: "1 · Send this",
+    copy: "Copy prompt",
+    copied: "Copied",
+    paste: "2 · Paste the full reply",
+    placeholder: "Paste everything, including any text or code fences",
+    waiting: "Waiting for reply",
+    ready: "{{count}} numbers · ready",
+    short: "{{count}} numbers · too short",
+    hintWaiting: "Paste the model's full reply here.",
+    hintReady: "Read {{count}} numbers.",
+    hintShort: "Only {{count}} of at least {{min}} numbers. The reply may be cut off — paste all of it.",
+    readyCount: "{{count}} of 3 replies ready",
+    readyHint: "You can analyze fewer, but three replies give the most reliable verdict.",
+    analyze: "Analyze",
+    tip: "Tip: test in a fresh chat without custom instructions. Coding agents with long system prompts shift a model's habits and make results less reliable.",
+  },
+  result: {
+    back: "Back to challenges",
+    none: "Paste at least one reply with enough numbers first.",
+    tiers: {
+      match: { label: "Strong match", title: "Answers look like {{model}}", text: "The replies point to this model and fit it as closely as genuine samples usually do." },
+      family: { label: "Vendor only", title: "Looks like a {{family}} model", text: "The vendor is clear, but no single version stands out. It may be a version newer than the bank." },
+      uncertain: { label: "No clear match", title: "No clear match", text: "Several models fit about equally well. More replies, or a fresh chat, can help." },
+      unknown: { label: "Unknown model", title: "Doesn't match a model we know", text: "The replies fit no model in the bank as well as genuine answers do. The service may be using an unlisted model." },
+      none: { label: "No result", title: "No reply had enough numbers", text: "Check that the full replies were pasted." },
+    },
+    best: "Best match",
+    vendor: "Vendor",
+    known: "Known model?",
+    yes: "Yes",
+    no: "No",
+    knownYes: "fit is within the normal range",
+    knownNo: "fits nothing well",
+    used: "Replies used",
+    usedValue: "{{used}} of {{total}}",
+    closest: "Closest models",
+    vendors: "Vendors",
+    perReply: "Each reply on its own",
+    reply: "Reply {{n}}",
+    counted: "{{count}} numbers · counted",
+    ignored: "{{count}} numbers · ignored (needs {{min}})",
+    identifyTitle: "Do you know which model this is?",
+    identifyText: "The result isn't certain. If you know the model, tell us — it helps us add it to the bank.",
+    identifyFamily: "Vendor",
+    identifyModel: "Model and version",
+    identifyModelPlaceholder: "e.g. gpt-6.2-sol, claude-opus-5-5, gemini-4-neon",
+    identifyNote: "Where did you test it? (optional)",
+    identifyNotePlaceholder: "e.g. the provider or app",
+    other: "Other / not listed",
+    identifySend: "Send",
+    identifyThanks: "Thanks, noted.",
+    share: "Share this result anonymously to improve ModelTrace",
+    shareDetail: "Sends your replies, the result, a browser fingerprint and your IP address to the ModelTrace server. Nothing is sent when this is off.",
+    caveat1: "ModelTrace can only name models that are in its bank — see which models are covered.",
+    caveat2: "Results are evidence, not proof. Versions that share a fingerprint are reported together.",
+  },
+  models: {
+    title: "Models in the bank",
+    lead: "Every fingerprint lists where its answers came from. Only models listed here can be named; anything else should come back as an unknown model.",
+    all: "All",
+    others: "Other vendors",
+    search: "Search models",
+    columns: { model: "Model", vendor: "Vendor", source: "Source", answers: "Answers", acc3: "Correct · 3 replies", acc1: "Correct · 1 reply", collected: "Collected" },
+    sources: {
+      official: { name: "Official", text: "The vendor's own API or subscription, pinned with no fallback." },
+      partner: { name: "Partner", text: "Served by a cloud the vendor licenses it to, such as Google Vertex." },
+      host: { name: "Third-party host", text: "Open-weight models from a host running full-precision weights." },
+      reseller: { name: "Reseller · unverified", text: "Collected through a reseller; kept until checked against an official source." },
+    },
+    group: "{{count}} versions reported together",
+    footnote: "\"Correct\" holds out one whole prompt setup at a time and checks whether the model is named correctly. Accuracy with the site's own prompts will be published once a separate test set exists.",
+  },
+  method: {
+    title: "How ModelTrace works",
+    lead: "Language models are bad at being random, and each one is bad in its own way. That habit is hard to hide and survives most wrappers, so it works as a fingerprint.",
+    steps: [
+      { title: "Ask for numbers", text: "Each challenge asks for about 300 picks between 1 and 355, chosen on first instinct. The wording changes every time." },
+      { title: "Read the habits", text: "Which numbers a model favours, how its picks drift along the list and which last digits it prefers form its fingerprint." },
+      { title: "Compare with the bank", text: "Answers are compared with fingerprints collected from official sources, after removing the effect of prompt wording and system prompts. A separate classifier estimates the vendor, so a version newer than the bank can still be placed." },
+    ],
+    verdicts: "What a result means",
+    privacy: "Privacy",
+    privacyItems: [
+      "Scoring runs in your browser; the page works without any server.",
+      "If the site is connected to a ModelTrace server and sharing is on, your replies, the result, a browser fingerprint and your IP address are sent to it to improve the bank. Turn sharing off on the result page to send nothing.",
+      "You paste replies yourself; the site never asks for an API key or connects to any model.",
+    ],
+    limits: "Limits",
+    limitItems: [
+      "Only models in the bank can be named.",
+      "Long system prompts and coding agents shift a model's habits.",
+      "Vendors update models behind the same name; fingerprints are re-collected over time.",
+      "The probe is public, so a determined provider could try to imitate a fingerprint.",
+    ],
+    faq: "Questions",
+    faqItems: [
+      { q: "Why three challenges?", a: "One reply usually finds the vendor, but neighbouring versions are close. Three replies together are far more reliable." },
+      { q: "Does it matter which app or API I test through?", a: "Plain chats and APIs work best. Heavy system prompts change the picks and can push the verdict towards \"vendor only\"." },
+      { q: "Where do the fingerprints come from?", a: "From the vendors' own APIs or their licensed partners wherever possible. Each model's source is listed on the Models page." },
+    ],
+    footer: "Open source on GitHub · results are evidence, not proof",
+  },
+};
+
+type Dict = typeof en;
+
+const zh: Dict = {
+  nav: { test: "测试", models: "模型", method: "原理", language: "EN", languageLabel: "切换语言", github: "GitHub 仓库" },
+  common: { loading: "正在加载指纹库……", loadError: "指纹库加载失败，请刷新页面重试。" },
+  home: {
+    title: "回答你的究竟是哪个模型？",
+    lead: "让模型给出三组数字。每个模型挑数字都有自己的习惯，ModelTrace 把这些习惯与从官方渠道采集的指纹进行比对。",
+    local: "在浏览器本地运行",
+    bank: "{{count}} 个模型 · 指纹库 {{version}}",
+    steps: [
+      { title: "新开一个对话", text: "在要检查的应用或服务里新开对话，不要使用自定义指令。" },
+      { title: "逐条发送挑战", text: "每条消息发一个提示词，最好每个挑战各开一个对话。" },
+      { title: "粘贴完整回复", text: "粘贴时即时检查每条回复，无需账号或 API Key。" },
+    ],
+    challenges: "三次挑战",
+    newChallenges: "重新生成",
+    promptLanguage: "提示词语言",
+    challenge: "挑战 {{n}}",
+    asks: "要求 {{count}} 个数字",
+    send: "1 · 发送这段提示词",
+    copy: "复制提示词",
+    copied: "已复制",
+    paste: "2 · 粘贴完整回复",
+    placeholder: "保留全部内容，包括文字和代码块",
+    waiting: "等待回复",
+    ready: "{{count}} 个数字 · 可用",
+    short: "{{count}} 个数字 · 太少",
+    hintWaiting: "在这里粘贴模型的完整回复。",
+    hintReady: "读取到 {{count}} 个数字。",
+    hintShort: "只有 {{count}} 个数字，至少需要 {{min}} 个。回复可能被截断，请完整粘贴。",
+    readyCount: "已就绪 {{count}}/3 条回复",
+    readyHint: "回复少于三条也能分析，但三条最可靠。",
+    analyze: "开始分析",
+    tip: "提示：请在不带自定义指令的新对话中测试。带有长系统提示词的编程智能体会改变模型的习惯，结果会不太可靠。",
+  },
+  result: {
+    back: "返回挑战",
+    none: "请先粘贴至少一条数字足够的回复。",
+    tiers: {
+      match: { label: "明确匹配", title: "回复看起来来自 {{model}}", text: "回复指向这个模型，且吻合程度与真实样本一致。" },
+      family: { label: "仅确定厂商", title: "看起来是 {{family}} 的模型", text: "厂商很明确，但没有哪个版本特别突出，可能是比指纹库更新的版本。" },
+      uncertain: { label: "没有明确匹配", title: "没有明确匹配", text: "有几个模型的吻合程度差不多。可以多测几次，或换一个新对话。" },
+      unknown: { label: "未知模型", title: "与已知模型都不吻合", text: "这些回复与指纹库中任何模型的吻合程度都不如真实样本，该服务可能在使用未收录的模型。" },
+      none: { label: "没有结果", title: "没有数字足够的回复", text: "请确认粘贴的是完整回复。" },
+    },
+    best: "最可能模型",
+    vendor: "厂商",
+    known: "已知模型？",
+    yes: "是",
+    no: "否",
+    knownYes: "吻合程度在正常范围内",
+    knownNo: "与任何模型都不吻合",
+    used: "计入的回复",
+    usedValue: "{{used}}/{{total}}",
+    closest: "最接近的模型",
+    vendors: "厂商",
+    perReply: "逐条结果",
+    reply: "回复 {{n}}",
+    counted: "{{count}} 个数字 · 计入",
+    ignored: "{{count}} 个数字 · 未计入（需要 {{min}} 个）",
+    identifyTitle: "你知道这是哪个模型吗？",
+    identifyText: "这次结果不确定。如果你知道是哪个模型，请告诉我们，这有助于把它加入指纹库。",
+    identifyFamily: "厂商",
+    identifyModel: "模型与版本",
+    identifyModelPlaceholder: "例如 gpt-6.2-sol、claude-opus-5-5、gemini-4-neon",
+    identifyNote: "在哪里测试的？（可选）",
+    identifyNotePlaceholder: "例如服务商或应用",
+    other: "其他 / 未列出",
+    identifySend: "提交",
+    identifyThanks: "谢谢，已记录。",
+    share: "匿名分享本次结果，帮助改进 ModelTrace",
+    shareDetail: "会把你的回复、结果、浏览器指纹和 IP 地址发送到 ModelTrace 服务器。关闭后不会发送任何内容。",
+    caveat1: "ModelTrace 只能识别指纹库中的模型——查看已收录的模型。",
+    caveat2: "结果只是证据而非定论。指纹相同的版本会合并显示。",
+  },
+  models: {
+    title: "指纹库中的模型",
+    lead: "每个指纹都注明了回答的来源。只有这里列出的模型才能被识别，其他模型应显示为未知模型。",
+    all: "全部",
+    others: "其他厂商",
+    search: "搜索模型",
+    columns: { model: "模型", vendor: "厂商", source: "来源", answers: "样本数", acc3: "正确率 · 3 条回复", acc1: "正确率 · 1 条回复", collected: "采集时间" },
+    sources: {
+      official: { name: "官方", text: "厂商自己的 API 或订阅，固定渠道、不回退。" },
+      partner: { name: "合作方", text: "由厂商授权的云平台提供，例如 Google Vertex。" },
+      host: { name: "第三方托管", text: "开放权重模型，由运行全精度权重的服务商提供。" },
+      reseller: { name: "转售 · 未验证", text: "通过转售商采集，在与官方来源核对前暂时保留。" },
+    },
+    group: "{{count}} 个版本合并显示",
+    footnote: "“正确率”的测法是每次留出一整组提示词设置，检查模型是否被正确识别。使用本站提示词的实际正确率将在建立独立测试集后公布。",
+  },
+  method: {
+    title: "ModelTrace 的原理",
+    lead: "语言模型并不擅长随机，而且每个模型都有自己的偏差。这种习惯很难隐藏，经过大多数封装后依然存在，因此可以作为指纹。",
+    steps: [
+      { title: "要求给出数字", text: "每次挑战要求凭第一反应在 1 到 355 之间挑选约 300 个数字，措辞每次都不同。" },
+      { title: "读取习惯", text: "模型偏爱哪些数字、选择如何沿着序列漂移、偏好哪些尾数，共同构成它的指纹。" },
+      { title: "与指纹库比对", text: "在去除提示词措辞和系统提示词的影响后，把回复与从官方渠道采集的指纹比对。另有一个分类器估计厂商，因此比指纹库更新的版本也能归到正确的厂商。" },
+    ],
+    verdicts: "结果的含义",
+    privacy: "隐私",
+    privacyItems: [
+      "评分在你的浏览器中完成，页面无需任何服务器即可使用。",
+      "如果本站连接了 ModelTrace 服务器且开启了分享，你的回复、结果、浏览器指纹和 IP 地址会被发送用于改进指纹库。在结果页关闭分享即可不发送任何内容。",
+      "回复由你自己粘贴，本站不会索要 API Key，也不会连接任何模型。",
+    ],
+    limits: "局限",
+    limitItems: [
+      "只能识别指纹库中的模型。",
+      "长系统提示词和编程智能体会改变模型的习惯。",
+      "厂商会在同一名称下更新模型，指纹需要定期重新采集。",
+      "探针是公开的，执意作假的服务商可能尝试模仿指纹。",
+    ],
+    faq: "常见问题",
+    faqItems: [
+      { q: "为什么要三次挑战？", a: "一条回复通常就能判断厂商，但相邻版本很接近，三条回复合起来可靠得多。" },
+      { q: "通过哪个应用或 API 测试有影响吗？", a: "普通对话和 API 效果最好。很重的系统提示词会改变选择，可能让结果变成“仅确定厂商”。" },
+      { q: "指纹从哪里来？", a: "尽可能来自厂商自己的 API 或其授权合作方。每个模型的来源都列在“模型”页面。" },
+    ],
+    footer: "开源于 GitHub · 结果只是证据而非定论",
+  },
+};
+
+function initialLanguage(): "en" | "zh" {
+  try {
+    const saved = localStorage.getItem("modeltrace.language");
+    if (saved === "en" || saved === "zh") return saved;
+  } catch { /* storage unavailable */ }
+  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+export function setLanguage(language: "en" | "zh") {
+  void i18n.changeLanguage(language);
+  document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+  try {
+    localStorage.setItem("modeltrace.language", language);
+  } catch { /* storage unavailable */ }
+}
+
+void i18n.use(initReactI18next).init({
+  resources: { en: { translation: en }, zh: { translation: zh } },
+  lng: initialLanguage(),
+  fallbackLng: "en",
+  interpolation: { escapeValue: false },
+  returnObjects: true,
+});
+document.documentElement.lang = i18n.language === "zh" ? "zh-CN" : "en";
+
+export default i18n;
