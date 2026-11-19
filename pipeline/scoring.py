@@ -59,28 +59,62 @@ def reply_scores(numbers: list[int], bank: dict) -> dict:
     return {"fused": fused, "raw": raw}
 
 
+TIERS = ("none", "match", "family", "uncertain", "unknown")
+
+
+def tier(used: int, top_prob: float, family_prob: float, known: float, bank: dict) -> str:
+    """Verdict level. Anything but "match" asks the user to say which model it was."""
+    if used == 0:
+        return "none"
+    if known < float(bank["unknown_threshold"][min(used, 3) - 1]):
+        return "unknown"          # fits no model in the bank as well as genuine answers do
+    if top_prob >= float(bank["tier_match"]):
+        return "match"
+    if family_prob >= float(bank["tier_family"]):
+        return "family"           # the vendor is clear, the version is not
+    return "uncertain"
+
+
+def bank_family_index(bank: dict, model: dict) -> int:
+    return [f["id"] for f in bank["families"]].index(model["family"])
+
+
+def family_logits(numbers: list[int], bank: dict) -> np.ndarray:
+    model = bank["family_model"]
+    x = np.concatenate([hellinger_feature(count_numbers(numbers)), ordered_block_feature(numbers)])
+    x = (x - np.asarray(model["mean"])) / np.asarray(model["scale"])
+    coef = np.asarray(model["coef"]).reshape(len(bank["families"]), -1)
+    return coef @ x + np.asarray(model["intercept"])
+
+
 def analyze(replies: list[dict], bank: dict) -> dict:
     """Score up to three replies ({"text", "expected_count"}) against the bank."""
-    diagnostics, accepted = [], []
+    diagnostics, accepted, family_scores = [], [], []
     for reply in replies:
         numbers = parse_numbers(str(reply.get("text", "")))
         minimum = minimum_numbers(int(reply.get("expected_count") or 0))
         ok = len(numbers) >= minimum
-        diagnostics.append({"parsed": len(numbers), "minimum": minimum, "accepted": ok})
+        diagnostics.append({"parsed": len(numbers), "minimum": minimum, "accepted": ok, "top": -1})
         if ok:
             accepted.append(reply_scores(numbers, bank))
+            family_scores.append(family_logits(numbers, bank))
+            diagnostics[-1]["top"] = int(np.argmax(accepted[-1]["fused"]))
     if not accepted:
-        return {"used": 0, "diagnostics": diagnostics}
+        return {"used": 0, "tier": "none", "diagnostics": diagnostics}
 
     used = len(accepted)
-    fused = np.mean([s["fused"] for s in accepted], axis=0)
-    beta = float(bank["beta"][min(used, 3) - 1])
-    probs = softmax(beta * fused)
-    top = int(np.argmax(probs))
-    for diag, scores in zip([d for d in diagnostics if d["accepted"]], accepted):
-        diag["top"] = int(np.argmax(scores["fused"]))
-    return {"used": used, "probs": probs, "top": top, "diagnostics": diagnostics,
-            "known": float(np.max(np.mean([s["raw"] for s in accepted], axis=0)))}
+    probs = softmax(float(bank["beta"][min(used, 3) - 1]) * np.mean([s["fused"] for s in accepted], axis=0))
+    family_of = np.asarray([bank_family_index(bank, m) for m in bank["models"]])
+    from_models = np.bincount(family_of, weights=probs, minlength=len(bank["families"]))
+    family_probs = 0.5 * softmax(np.mean(family_scores, axis=0)) + 0.5 * from_models
+    known = float(np.max(np.mean([s["raw"] for s in accepted], axis=0)))
+    top, family_top = int(np.argmax(probs)), int(np.argmax(family_probs))
+    return {
+        "used": used, "probs": probs, "top": top,
+        "family_probs": family_probs, "family_top": family_top, "known": known,
+        "tier": tier(used, float(probs[top]), float(family_probs[family_top]), known, bank),
+        "diagnostics": diagnostics,
+    }
 
 
 def log_loss_beta(records: list[tuple[np.ndarray, int]]) -> float:

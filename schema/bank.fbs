@@ -1,0 +1,71 @@
+// Binary fingerprint bank, written by pipeline/export.py and read by core/trace (Go, native and
+// TinyGo WebAssembly) and by the web app for model metadata. Matrices are row-major float32.
+//
+// Regenerate code after changing this file:
+//   flatc --go -o core/internal schema/bank.fbs
+//   flatc --python -o pipeline schema/bank.fbs
+//   flatc --ts -o web/src/core/fb schema/bank.fbs
+
+namespace mtfb;
+
+table Family {
+  id: string;
+  name: string;
+}
+
+table Model {
+  id: string;
+  display_name: string;
+  family: uint16;          // index into Bank.families
+  members: [string];       // labels merged into this entry (one item when not merged)
+  source: string;          // official | partner | host | reseller
+  providers: [string];
+  collected: string;       // "YYYY-MM-DD..YYYY-MM-DD"
+  responses: uint32;
+  acc1: float;             // leave-one-setup-out accuracy, one reply
+  acc3: float;             // ... three replies
+}
+
+// One feature block: standardize, remove `rank` prompt-setup directions, compare with centroids.
+table Block {
+  dim: uint32;
+  rank: uint32;
+  mean: [float];           // dim
+  scale: [float];          // dim
+  basis: [float];          // rank x dim
+  centroids: [float];      // models x dim
+  env_count: uint32;
+  env_centroids: [float];  // env_count x models x dim (ordered block only)
+}
+
+// Multinomial logistic regression over the concatenated block features.
+table FamilyModel {
+  dim: uint32;
+  mean: [float];
+  scale: [float];
+  coef: [float];           // families x dim
+  intercept: [float];      // families
+}
+
+table Bank {
+  version: string;
+  built_at: string;
+  value_max: uint32;
+  min_numbers: uint32;
+  min_ratio: float;
+  alpha: float;
+  ordered_weight: float;
+  families: [Family];
+  models: [Model];
+  hellinger: Block;
+  ordered: Block;
+  beta: [float];               // softmax temperature for 1, 2, 3 replies
+  unknown_threshold: [float];  // known-model score below this = unknown model, for 1, 2, 3 replies
+  tier_match: float;           // top model probability needed for a match
+  tier_family: float;          // top family probability needed for a family-only verdict
+  family_model: FamilyModel;
+}
+
+root_type Bank;
+file_identifier "MTB2";
+file_extension "fb";

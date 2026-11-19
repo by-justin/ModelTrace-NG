@@ -21,11 +21,16 @@ import numpy as np
 
 from .features import ALPHA, hellinger_feature, ordered_block_feature
 from .parsing import MIN_NUMBERS, MIN_RATIO, VALUE_MAX
+from . import family
+from .export import to_flatbuffer
 from .references import ROOT, load_config, load_rows
 from .scoring import log_loss_beta, reply_scores
 
 ORDERED_WEIGHT = 0.25
 NUISANCE_RANK = 2
+UNKNOWN_PERCENTILE = 5   # known-model score threshold: 5% of genuine held-out tests fall below it
+TIER_MATCH = 0.80        # top model probability for a "match" verdict
+TIER_FAMILY = 0.80       # top family probability for a "family" verdict
 OUT_DIR = ROOT / "data" / "bank"
 
 BRANDS = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini", "gemma": "Gemma", "deepseek": "DeepSeek",
@@ -154,6 +159,38 @@ def leave_setup_out(rows: list[dict], model_ids: list[str]) -> dict:
     return {"per_model": per_model, "known": known, "held_out": held_out}
 
 
+def evaluate_family(rows: list[dict], families: list[str], beta: float) -> dict:
+    """Family accuracy on 3-reply tests: one prompt setup held out, and whole models held out
+    (a family with a single model cannot be right in the second case)."""
+    out = {}
+    for name, split in (("setup_held_out", "condition_id"), ("model_held_out", "source")):
+        hits = total = 0
+        for value in sorted({r[split] for r in rows}):
+            train = [r for r in rows if r[split] != value]
+            ids = list(dict.fromkeys(r["source"] for r in train))
+            bank = _scoring_bank(fit_blocks(train, ids), ids)
+            fam = np.asarray([families.index(next(r["family_id"] for r in train if r["source"] == m)) for m in ids])
+            classifier = family.fit(train, families)
+            groups: dict[tuple, list] = {}
+            for r in rows:
+                if r[split] == value:
+                    groups.setdefault((r["member"], r["condition_id"]), []).append(r)
+            for group in groups.values():
+                if len(group) < 3:
+                    continue
+                group = group[:3]
+                probs = np.exp(beta * np.mean([reply_scores(r["numbers"], bank)["fused"] for r in group], axis=0))
+                from_models = np.bincount(fam, weights=probs / probs.sum(), minlength=len(families))
+                logits = np.mean([family.logits(family.feature(r), classifier) for r in group], axis=0)
+                lr = np.exp(logits - logits.max())
+                combined = 0.5 * lr / lr.sum() + 0.5 * from_models
+                hits += families[int(np.argmax(combined))] == group[0]["family_id"]
+                total += 1
+        out[name] = hits / total
+        print(f"  family, 3 replies, {name}: {hits / total:.3f}")
+    return out
+
+
 def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
     config = config or load_config()
     rows, dropped = load_rows(config)
@@ -165,6 +202,9 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
     evaluation = leave_setup_out(rows, model_ids)
 
     families = [fid for fid in config["families"] if any(r["family_id"] == fid for r in rows)]
+    family_model = family.fit(rows, families)
+    family_eval = evaluate_family(rows, families, calibration[2]["beta"])
+    unknown = [float(np.percentile(evaluation["known"][q], UNKNOWN_PERCENTILE)) for q in (1, 2, 3)]
     models = []
     for model_id in model_ids:
         mine = [r for r in rows if r["source"] == model_id]
@@ -196,14 +236,36 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
         "hellinger": blocks["hellinger"],
         "ordered": blocks["ordered"],
         "beta": [c["beta"] for c in calibration],
+        "unknown_threshold": unknown,
+        "tier_match": TIER_MATCH,
+        "tier_family": TIER_FAMILY,
+        "family_model": family_model,
     }
+    bank = quantize(bank)
     total = {k: sum(h[k] for h in evaluation["per_model"].values()) for k in ("n1", "h1", "n3", "h3")}
     report = {
         "models": len(model_ids), "answers": len(rows), "left_out": dropped,
         "calibration": calibration,
         "leave_setup_out": {"single": total["h1"] / total["n1"], "three": total["h3"] / total["n3"]},
+        "family_classifier": family_eval,
+        "unknown_threshold": unknown,
     }
     return bank, report, rows, evaluation
+
+
+def quantize(value):
+    """Round every number to float32, the precision of the binary bank, so the Python reference
+    scorer and the Go core see identical parameters."""
+    if isinstance(value, (np.ndarray, list, tuple)) and len(value) and not isinstance(np.ravel(value)[0], (str, dict)):
+        return np.asarray(value, dtype=np.float32).astype(np.float64)
+    if isinstance(value, dict):
+        return {k: quantize(v) if k not in ("responses", "value_max", "min_numbers", "members", "providers") else v
+                for k, v in value.items()}
+    if isinstance(value, list):
+        return [quantize(v) for v in value]
+    if isinstance(value, float):
+        return float(np.float32(value))
+    return value
 
 
 def to_jsonable(value):
@@ -225,6 +287,7 @@ def main() -> None:
     bank, report, _, _ = build()
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "bank.json").write_text(json.dumps(to_jsonable(bank), ensure_ascii=False) + "\n", encoding="utf-8")
+    (args.out / "bank.fb").write_bytes(to_flatbuffer(bank))
     (args.out / "report.json").write_text(json.dumps(to_jsonable(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(to_jsonable(report["leave_setup_out"])), "->", args.out)
 
