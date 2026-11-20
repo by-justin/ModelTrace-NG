@@ -15,7 +15,7 @@ export interface ModelInfo {
   providers: string[];
   collected: string;
   responses: number;
-  acc1: number;
+  acc1: number;        // negative: not measurable (single prompt setup)
   acc3: number;
   fam3: number;        // vendor named correctly, 3 replies, prompt setup held out
   fam3Unseen: number;  // vendor named correctly when this model is left out of the bank

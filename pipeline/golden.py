@@ -30,7 +30,8 @@ def cases() -> list[dict]:
         by_model.setdefault(r["member"], []).append(r)
     out = []
     for i, (label, items) in enumerate(sorted(by_model.items())):
-        env = sorted({r["condition_id"] for r in items})[i % 12]
+        envs = sorted({r["condition_id"] for r in items})
+        env = envs[i % len(envs)]
         triple = [r for r in items if r["condition_id"] == env][:3]
         replies = [{"text": r["text"], "expected_count": r["requested_count"]} for r in triple]
         out.append({"name": f"{label} three replies ({env})", "replies": replies})

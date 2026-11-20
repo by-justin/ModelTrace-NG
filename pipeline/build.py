@@ -88,6 +88,24 @@ def _nuisance_basis(standardized: np.ndarray, groups: np.ndarray) -> np.ndarray:
     return right[:rank]
 
 
+def _model_means(values: np.ndarray, labels: np.ndarray, envs: np.ndarray, model_ids: list[str]) -> tuple:
+    """Per-model average. A model that lacks some prompt setups has each answer shifted by its
+    setup's average offset, measured on the models that cover every setup, so its average is
+    comparable with theirs. Returns (means, offset per setup)."""
+    all_envs = set(envs)
+    covers = {m: set(envs[labels == m]) == all_envs for m in model_ids}
+    complete = np.isin(labels, [m for m in model_ids if covers[m]])
+    base = values[complete].mean(axis=0)
+    offset = {e: values[complete & (envs == e)].mean(axis=0) - base for e in sorted(all_envs)}
+    means = []
+    for m in model_ids:
+        mine = values[labels == m]
+        if not covers[m]:
+            mine = mine - np.stack([offset[e] for e in envs[labels == m]])
+        means.append(mine.mean(axis=0))
+    return np.stack(means), offset
+
+
 def _unit_rows(matrix: np.ndarray) -> np.ndarray:
     return matrix / np.maximum(np.linalg.norm(matrix, axis=1, keepdims=True), 1e-12)
 
@@ -103,7 +121,8 @@ def _feature(row: dict, key: str) -> np.ndarray:
 def fit_blocks(rows: list[dict], model_ids: list[str]) -> dict:
     labels = np.asarray([r["source"] for r in rows])
     groups = np.asarray([r["nuisance_condition_id"] for r in rows])
-    envs = sorted({r["condition_id"] for r in rows})
+    env_of = np.asarray([r["condition_id"] for r in rows])
+    envs = sorted(set(env_of))
     blocks = {}
     for name, raw in (
         ("hellinger", np.stack([_feature(r, "_h") for r in rows])),
@@ -118,13 +137,22 @@ def fit_blocks(rows: list[dict], model_ids: list[str]) -> dict:
             "mean": mean,
             "scale": scale,
             "basis": basis,
-            "centroids": _unit_rows(np.stack([projected[labels == m].mean(axis=0) for m in model_ids])),
+            "centroids": _unit_rows(_model_means(projected, labels, env_of, model_ids)[0]),
         }
         if name == "ordered":  # per-setup centroids without the projection, for the template score
-            env_of = np.asarray([r["condition_id"] for r in rows])
+            means, offset = _model_means(standardized, labels, env_of, model_ids)
             block["env_centroids"] = np.stack(
                 [
-                    _unit_rows(np.stack([standardized[(env_of == e) & (labels == m)].mean(axis=0) for m in model_ids]))
+                    _unit_rows(
+                        np.stack(
+                            [
+                                standardized[(env_of == e) & (labels == m)].mean(axis=0)
+                                if np.any((env_of == e) & (labels == m))
+                                else means[i] + offset[e]  # setup this model never answered: estimated
+                                for i, m in enumerate(model_ids)
+                            ]
+                        )
+                    )
                     for e in envs
                 ]
             )
@@ -145,10 +173,10 @@ def calibrate(rows: list[dict], model_ids: list[str]) -> list[dict]:
             ids = sorted({r["challenge_id"] for r in rows if r["condition_id"] == condition})
             for held in itertools.combinations(ids, query_count):
                 held_set = set(held)
-                bank = _scoring_bank(
-                    fit_blocks([r for r in rows if r["challenge_id"] not in held_set], model_ids), model_ids
-                )
-                for truth, model_id in enumerate(model_ids):
+                train = [r for r in rows if r["challenge_id"] not in held_set]
+                ids = _present(train, model_ids)
+                bank = _scoring_bank(fit_blocks(train, ids), ids)
+                for truth, model_id in enumerate(ids):
                     mine = [r for r in rows if r["source"] == model_id and r["challenge_id"] in held_set]
                     # merged groups have several members per prompt: score one member's answers at a time
                     for member in sorted({r["member"] for r in mine}):
@@ -173,8 +201,10 @@ def leave_setup_out(rows: list[dict], model_ids: list[str]) -> dict:
     known = {1: [], 2: [], 3: []}
     held_out = []  # (condition, model, member, scores) kept for later analyses
     for env in sorted({r["condition_id"] for r in rows}):
-        bank = _scoring_bank(fit_blocks([r for r in rows if r["condition_id"] != env], model_ids), model_ids)
-        for truth, model_id in enumerate(model_ids):
+        train = [r for r in rows if r["condition_id"] != env]
+        ids = _present(train, model_ids)  # a model whose only setup is held out cannot be tested
+        bank = _scoring_bank(fit_blocks(train, ids), ids)
+        for truth, model_id in enumerate(ids):
             mine = [r for r in rows if r["condition_id"] == env and r["source"] == model_id]
             for member in sorted({r["member"] for r in mine}):
                 replies = [r for r in mine if r["member"] == member]
@@ -191,6 +221,11 @@ def leave_setup_out(rows: list[dict], model_ids: list[str]) -> dict:
                     known[2].append(float(np.max(np.mean([s["raw"] for s in scores[:2]], axis=0))))
                 held_out.append((env, model_id, member, replies))
     return {"per_model": per_model, "known": known, "held_out": held_out}
+
+
+def _present(rows: list[dict], model_ids: list[str]) -> list[str]:
+    sources = {r["source"] for r in rows}
+    return [m for m in model_ids if m in sources]
 
 
 def _rate(counts: list[int] | None) -> float:
@@ -264,8 +299,9 @@ def build(config: dict | None = None) -> tuple[dict, dict, list, dict]:
                 "providers": sorted({r["provider"] for r in mine}),
                 "collected": f"{dates[0]}..{dates[-1]}" if dates else "",
                 "responses": len(mine),
-                "acc1": hits["h1"] / max(hits["n1"], 1),
-                "acc3": hits["h3"] / max(hits["n3"], 1),
+                # -1: not measurable (a partial model with a single prompt setup)
+                "acc1": hits["h1"] / hits["n1"] if hits["n1"] else -1.0,
+                "acc3": hits["h3"] / hits["n3"] if hits["n3"] else -1.0,
                 "fam3": _rate(family_eval["per_model"]["setup_held_out"].get(model_id)),
                 "fam3_unseen": _rate(family_eval["per_model"]["model_held_out"].get(model_id)),
             }

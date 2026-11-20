@@ -7,7 +7,8 @@ Rules, in order:
    (the count ratio is informational).
 3. First valid answer per (label, prompt) wins, so retries cannot cherry-pick.
 4. Labels marked comparison-only (e.g. "@vertex") are dropped unless they belong to a merge group.
-5. Only complete labels are kept: 36 prompts covering all 12 prompt setups three times each.
+5. Only complete labels are kept: 36 prompts covering all 12 prompt setups three times each, except
+   labels listed under partial_coverage in the config.
 6. Merge groups rename their members to the group label.
 """
 
@@ -52,6 +53,7 @@ def load_rows(config: dict | None = None, root: Path = records.RECORDS) -> tuple
     alias = {member: group for group, spec in config["merge"].items() for member in spec["members"]}
     route_filter = {k: v for k, v in config["route_filter"].items() if not k.startswith("_")}
     markers = tuple(config["comparison_only_markers"])
+    partial = {k for k in config.get("partial_coverage", {}) if not k.startswith("_")}
 
     chosen: dict[tuple[str, str], dict] = {}
     for row in records.iterate(root):
@@ -71,7 +73,8 @@ def load_rows(config: dict | None = None, root: Path = records.RECORDS) -> tuple
     rows, dropped = [], {}
     for label, items in per_label.items():
         envs = collections.Counter(r["condition_id"] for r in items)
-        if len(items) != 36 or len(envs) != 12 or set(envs.values()) != {3}:
+        complete = len(items) == 36 and len(envs) == 12 and set(envs.values()) == {3}
+        if not complete and label not in partial:
             dropped[label] = len(items)
             continue
         family_id = family_of(label, config)

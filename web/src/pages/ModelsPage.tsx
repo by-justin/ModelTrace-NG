@@ -5,7 +5,8 @@ import { useApp } from "../state";
 
 const MAIN_FAMILIES = ["openai", "anthropic", "google"];
 const SOURCES: ModelInfo["source"][] = ["official", "partner", "host"];
-const pct = (p: number) => `${Math.round(p * 100)}%`;
+// a negative accuracy means it could not be measured (a model with a single prompt setup)
+const pct = (p: number) => (p < 0 ? "—" : `${Math.round(p * 100)}%`);
 
 export function ModelsPage() {
   const { t } = useTranslation();
