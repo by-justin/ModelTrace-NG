@@ -30,9 +30,7 @@ jobs:
       - name: Tests (Go core and API, WebAssembly golden check, web)
         run: nix develop -c mt test
       - name: Golden cases match the committed bank
-        run: |
-          nix develop -c uv run python -m pipeline.golden
-          git diff --exit-code -- core/trace/testdata/golden.json
+        run: nix develop -c uv run python -m pipeline.golden --check
       - name: Build the static site
         run: nix develop -c mt site
       - uses: actions/upload-pages-artifact@v3
