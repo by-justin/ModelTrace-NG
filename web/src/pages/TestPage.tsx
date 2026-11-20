@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { promptFor, type Challenge } from "../core/challenges";
@@ -11,7 +11,13 @@ interface Step {
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
+const RESULT = "result"; // focus target once every challenge is answered
 const MIN_SHOWN = 0.01; // models below 1% are left out of the live panel
+
+// Safari, and every iOS browser since they all run on WebKit, pops up a "Paste" bubble on each
+// clipboard read, so the click-to-paste shortcut is left out there and the user pastes by hand.
+const AUTO_PASTE = typeof navigator !== "undefined"
+  && !(/Safari\//.test(navigator.userAgent) && !/Chrome\/|Chromium|Android|Edg\//.test(navigator.userAgent));
 
 async function writeClipboard(text: string) {
   try {
@@ -57,29 +63,42 @@ function PromptBox({ text, onCopy }: { text: string; onCopy(): void }) {
   );
 }
 
-function ReplyBox({ index, challenge }: { index: number; challenge: Challenge }) {
+function ReplyBox({ index, challenge, onFilled }: { index: number; challenge: Challenge; onFilled(): void }) {
   const { t } = useTranslation();
   const { scorer, session, setReply } = useApp();
+  const pasted = useRef(false);
   if (!scorer) return null;
   const text = session.replies[index];
   const count = scorer.count(text);
   const min = scorer.minimum(challenge.expectedCount);
-  const state = !text.trim() ? "empty" : count >= min ? "valid" : "invalid";
+  const usable = (value: string) => scorer.count(value) >= min;
+  const state = !text.trim() ? "empty" : usable(text) ? "valid" : "invalid";
 
   // Clicking an empty box pastes the clipboard when it holds a usable reply (and not one already pasted).
   const pasteFromClipboard = async () => {
-    if (text.trim() || !navigator.clipboard?.readText) return;
+    if (!AUTO_PASTE || text.trim() || !navigator.clipboard?.readText) return;
     try {
       const clip = await navigator.clipboard.readText();
-      if (scorer.count(clip) >= min && !session.replies.includes(clip)) setReply(index, clip);
+      if (usable(clip) && !session.replies.includes(clip)) {
+        setReply(index, clip);
+        onFilled();
+      }
     } catch { /* permission refused or unsupported: the user pastes by hand */ }
+  };
+
+  // A paste that leaves a usable reply folds the challenge; typing never does.
+  const onChange = (value: string) => {
+    setReply(index, value);
+    if (pasted.current && usable(value)) onFilled();
+    pasted.current = false;
   };
 
   return (
     <div className="stack-xs">
       <textarea className={state} spellCheck={false} aria-label={t("home.replyLabel", { n: index + 1 })}
-        aria-invalid={state === "invalid"} placeholder={t("home.placeholder")} value={text}
-        onClick={() => void pasteFromClipboard()} onChange={(e) => setReply(index, e.target.value)} />
+        aria-invalid={state === "invalid"} placeholder={t(AUTO_PASTE ? "home.placeholder" : "home.placeholderManual")}
+        value={text} onClick={() => void pasteFromClipboard()} onPaste={() => { pasted.current = true; }}
+        onChange={(e) => onChange(e.target.value)} />
       {state === "valid" && <span className="hint valid-text">✓ {t("home.valid", { count })}</span>}
       {state === "invalid" && <span className="hint invalid-text" role="alert">{t("home.invalid", { count, min })}</span>}
     </div>
@@ -118,9 +137,47 @@ function LivePanel({ result, total }: { result: Result; total: number }) {
 
 export function TestPage() {
   const { t } = useTranslation();
-  const { scorer, session, result, promptLanguage, setPromptLanguage, newChallenges, copied } = useApp();
+  const { scorer, session, result, promptLanguage, newChallenges, copied } = useApp();
+  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  const [focusNext, setFocusNext] = useState<string | null>(null);
   const steps = t("home.steps", { returnObjects: true }) as Step[];
+
+  // Once the next challenge has unfolded, move focus to its prompt and bring it into view;
+  // with every challenge answered, focus goes to the full-result link instead.
+  useEffect(() => {
+    if (!focusNext) return;
+    if (focusNext === RESULT) {
+      document.querySelector<HTMLElement>(".live-link")?.focus({ preventScroll: true });
+      setFocusNext(null);
+      return;
+    }
+    const box = document.querySelector<HTMLElement>(`#challenge-${focusNext} .prompt`);
+    box?.focus({ preventScroll: true });
+    box?.closest("article")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFocusNext(null);
+  }, [focusNext]);
+
   if (!scorer) return null;
+  const { challenges, replies } = session;
+  const usable = (i: number) => scorer.count(replies[i]) >= scorer.minimum(challenges[i].expectedCount);
+
+  const toggle = (id: string) => setFolded((f) => {
+    const next = new Set(f);
+    if (!next.delete(id)) next.add(id);
+    return next;
+  });
+
+  // Fold the challenge just filled, open the next one still missing a reply and move focus to its prompt.
+  const filled = (i: number) => {
+    const order = [...challenges.keys()].slice(i + 1).concat([...challenges.keys()].slice(0, i));
+    const next = order.find((j) => !usable(j));
+    setFolded((f) => {
+      const out = new Set(f).add(challenges[i].id);
+      if (next !== undefined) out.delete(challenges[next].id);
+      return out;
+    });
+    setFocusNext(next === undefined ? RESULT : challenges[next].id);
+  };
 
   return (
     <div className="stack-xl">
@@ -135,7 +192,7 @@ export function TestPage() {
         </div>
       </section>
 
-      {result ? <LivePanel result={result} total={session.challenges.length} /> : (
+      {result ? <LivePanel result={result} total={challenges.length} /> : (
         <ol className="steps">
           {steps.map((step, i) => (
             <li key={step.title} className="card step">
@@ -149,31 +206,36 @@ export function TestPage() {
       <section className="stack" aria-labelledby="challenges-title">
         <div className="row-between">
           <h2 id="challenges-title">{t("home.challenges")}</h2>
-          <div className="row">
-            <label className="select-label">
-              {t("home.promptLanguage")}
-              <select value={promptLanguage} onChange={(e) => setPromptLanguage(e.target.value as "zh" | "en")}>
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-              </select>
-            </label>
-            <button type="button" className="button" onClick={newChallenges}>{t("home.newChallenges")}</button>
-          </div>
+          <button type="button" className="button" onClick={() => { setFolded(new Set()); newChallenges(); }}>
+            {t("home.newChallenges")}
+          </button>
         </div>
 
-        {session.challenges.map((challenge, i) => (
-          <article key={challenge.id} className="card challenge">
-            <div className="challenge-head">
-              <span className="step-number dark">{i + 1}</span>
-              <strong>{t("home.challenge", { n: i + 1 })}</strong>
-              <span className="muted">{t("home.asks", { count: challenge.expectedCount })}</span>
-            </div>
-            <div className="challenge-body">
-              <div><PromptBox text={promptFor(challenge, promptLanguage)} onCopy={() => copied(i)} /></div>
-              <div><ReplyBox index={i} challenge={challenge} /></div>
-            </div>
-          </article>
-        ))}
+        {challenges.map((challenge, i) => {
+          const open = !folded.has(challenge.id);
+          const done = usable(i);
+          return (
+            <article key={challenge.id} id={`challenge-${challenge.id}`} className={`card challenge ${open ? "" : "folded"}`}>
+              <button type="button" className="challenge-head" aria-expanded={open} aria-controls={`body-${challenge.id}`}
+                aria-label={t("home.toggle", { n: i + 1 })} onClick={() => toggle(challenge.id)}>
+                <span className={`step-number ${done ? "done" : "dark"}`}>{done ? "✓" : i + 1}</span>
+                <strong>{t("home.challenge", { n: i + 1 })}</strong>
+                {done
+                  ? <span className="valid-text">{t("home.valid", { count: scorer.count(replies[i]) })}</span>
+                  : <span className="muted">{t("home.asks", { count: challenge.expectedCount })}</span>}
+                <svg className="chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {open && (
+                <div className="challenge-body" id={`body-${challenge.id}`}>
+                  <div><PromptBox text={promptFor(challenge, promptLanguage)} onCopy={() => copied(i)} /></div>
+                  <div><ReplyBox index={i} challenge={challenge} onFilled={() => filled(i)} /></div>
+                </div>
+              )}
+            </article>
+          );
+        })}
       </section>
     </div>
   );

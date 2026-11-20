@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { contribute } from "./api/submit";
 import { generateChallenges, type Challenge, type PromptLanguage } from "./core/challenges";
 import { Scorer, type Result } from "./core/scorer";
@@ -15,11 +16,10 @@ interface AppState {
   loadError: boolean;
   session: Session;
   result: Result | null;        // recomputed whenever a reply changes; null until one is usable
-  promptLanguage: PromptLanguage;
+  promptLanguage: PromptLanguage;  // follows the page language
   share: boolean;
   setReply(index: number, text: string): void;
   copied(index: number): void;
-  setPromptLanguage(language: PromptLanguage): void;
   newChallenges(): void;
   contributeNow(): void;
   setShare(share: boolean): void;
@@ -49,9 +49,8 @@ function freshSession(language: PromptLanguage): Session {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [scorer, setScorer] = useState<Scorer | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [promptLanguage, setPromptLanguageState] = useState<PromptLanguage>(
-    () => (stored("modeltrace.promptLanguage", "zh") === "en" ? "en" : "zh"),
-  );
+  const { i18n } = useTranslation();
+  const promptLanguage: PromptLanguage = i18n.language === "zh" ? "zh" : "en";
   const [session, setSession] = useState<Session>(() => freshSession(promptLanguage));
   const [share, setShareState] = useState(() => stored("modeltrace.share", "1") === "1");
   const sent = useRef<string | null>(null);
@@ -73,11 +72,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const copied = useCallback((index: number) => {
     setSession((s) => ({ ...s, languages: s.languages.map((l, i) => (i === index ? promptLanguage : l)) }));
   }, [promptLanguage]);
-
-  const setPromptLanguage = useCallback((language: PromptLanguage) => {
-    setPromptLanguageState(language);
-    store("modeltrace.promptLanguage", language);
-  }, []);
 
   const newChallenges = useCallback(() => setSession(freshSession(promptLanguage)), [promptLanguage]);
 
@@ -105,8 +99,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ scorer, loadError, session, result, promptLanguage, share, setReply, copied, setPromptLanguage, newChallenges, contributeNow, setShare }),
-    [scorer, loadError, session, result, promptLanguage, share, setReply, copied, setPromptLanguage, newChallenges, contributeNow, setShare],
+    () => ({ scorer, loadError, session, result, promptLanguage, share, setReply, copied, newChallenges, contributeNow, setShare }),
+    [scorer, loadError, session, result, promptLanguage, share, setReply, copied, newChallenges, contributeNow, setShare],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
