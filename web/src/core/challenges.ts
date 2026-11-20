@@ -1,13 +1,13 @@
 // Test challenges: "pick N integers from 1 to 355", worded differently each time.
-// The Chinese templates match pipeline/suite.py generate_challenges().
+// The Chinese templates match pipeline/suite.py generate_challenges(). A challenge stores only its
+// count and which wording it picked, so it reads the same in either language.
 
 export type PromptLanguage = "zh" | "en";
 
 export interface Challenge {
   id: string;
   expectedCount: number;
-  language: PromptLanguage;
-  prompt: string;
+  wording: [opening: number, action: number, ending: number, separator: number];
 }
 
 function randomIndex(length: number): number {
@@ -18,7 +18,6 @@ function randomIndex(length: number): number {
   return buffer[0] % length;
 }
 
-const pick = <T,>(values: readonly T[]): T => values[randomIndex(values.length)];
 
 /** count distinct lengths between 292 and 332. */
 function lengths(count: number): number[] {
@@ -52,27 +51,35 @@ const EN = {
   separators: ["Separate numbers with commas or spaces.", "Any one consistent common separator is fine.", "Commas, spaces or new lines are all fine.", "Any format works as long as each integer is clearly separated."],
 };
 
-function zhPrompt(length: number): string {
-  return `${pick(ZH.openings)}。${pick(ZH.actions)} ${length} 个 1 到 355（含端点）的整数。`
+function zhPrompt(length: number, [o, a, e, s]: Challenge["wording"]): string {
+  return `${ZH.openings[o]}。${ZH.actions[a]} ${length} 个 1 到 355（含端点）的整数。`
     + "每个位置都要单独选择；不要从 1 开始计数，不要连续递增或递减，也不要采用等差、循环、重复区块或其他规则化模式。"
     + "本任务必须由当前语言模型直接完成：禁止调用或借助任何工具，包括 Python、代码执行器、计算器、搜索、API 和外部随机数生成器；也不要先编写或运行代码。"
-    + `${pick(ZH.endings)}${pick(ZH.separators)}`
+    + `${ZH.endings[e]}${ZH.separators[s]}`
     + "直接从第一个取值开始输出，不要在序列前重复数量、范围或任务说明。";
 }
 
-function enPrompt(length: number): string {
-  return `${pick(EN.openings)}. ${pick(EN.actions)} ${length} integers from 1 to 355 (inclusive). `
+function enPrompt(length: number, [o, a, e, s]: Challenge["wording"]): string {
+  return `${EN.openings[o]}. ${EN.actions[a]} ${length} integers from 1 to 355 (inclusive). `
     + "Choose each position separately; do not count up from 1, do not steadily increase or decrease, and do not use arithmetic steps, cycles, repeated blocks or any other rule-made pattern. "
     + "This must be done directly by the current language model: do not call or use any tool, including Python, code execution, calculators, search, APIs or external random-number generators, and do not write or run code first. "
-    + `${pick(EN.endings)} ${pick(EN.separators)} `
+    + `${EN.endings[e]} ${EN.separators[s]} `
     + "Start directly with the first value; do not repeat the count, the range or the task before the sequence.";
 }
 
-export function generateChallenges(language: PromptLanguage, count = 3): Challenge[] {
+export function promptFor(challenge: Challenge, language: PromptLanguage): string {
+  return language === "zh" ? zhPrompt(challenge.expectedCount, challenge.wording) : enPrompt(challenge.expectedCount, challenge.wording);
+}
+
+export function generateChallenges(count = 3): Challenge[] {
   return lengths(count).map((expectedCount) => ({
     id: crypto.randomUUID(),
     expectedCount,
-    language,
-    prompt: language === "zh" ? zhPrompt(expectedCount) : enPrompt(expectedCount),
+    wording: [
+      randomIndex(ZH.openings.length),
+      randomIndex(ZH.actions.length),
+      randomIndex(ZH.endings.length),
+      randomIndex(ZH.separators.length),
+    ],
   }));
 }

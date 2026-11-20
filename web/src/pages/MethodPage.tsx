@@ -15,8 +15,6 @@ const TIERS = ["match", "family", "uncertain", "unknown"] as const;
 export function MethodPage() {
   const { t } = useTranslation();
   const steps = t("method.steps", { returnObjects: true }) as Step[];
-  const privacy = t("method.privacyItems", { returnObjects: true }) as string[];
-  const limits = t("method.limitItems", { returnObjects: true }) as string[];
   const faq = t("method.faqItems", { returnObjects: true }) as Faq[];
   return (
     <div className="stack-xl">
@@ -46,17 +44,6 @@ export function MethodPage() {
           ))}
         </div>
       </section>
-
-      <div className="columns">
-        <section className="card stack-sm">
-          <h2>{t("method.privacy")}</h2>
-          <ul>{privacy.map((item) => <li key={item}>{item}</li>)}</ul>
-        </section>
-        <section className="card stack-sm">
-          <h2>{t("method.limits")}</h2>
-          <ul>{limits.map((item) => <li key={item}>{item}</li>)}</ul>
-        </section>
-      </div>
 
       <section className="stack-sm">
         <h2>{t("method.faq")}</h2>

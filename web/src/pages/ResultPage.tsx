@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { contribute, type Identification } from "../api/submit";
@@ -8,18 +8,11 @@ const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
 
 export function ResultPage() {
   const { t } = useTranslation();
-  const { scorer, session, share, setShare } = useApp();
-  const sent = useRef<string | null>(null);
+  const { scorer, session, result, share, setShare, contributeNow } = useApp();
   const [identified, setIdentified] = useState(false);
-  const result = session.result;
 
-  // Contribute once per analysis, in the background. Failures are silent by design.
-  useEffect(() => {
-    if (!scorer || !result || !share || sent.current === session.id) return;
-    sent.current = session.id;
-    void contribute({ sessionId: session.id, bank: scorer.bank, challenges: session.challenges,
-      replies: session.replies, result, identification: null });
-  }, [scorer, result, share, session]);
+  // Opening the result contributes it (once per set of replies) even if not every reply is in.
+  useEffect(contributeNow, [contributeNow]);
 
   if (!scorer || !result) {
     return <div className="stack"><p className="notice">{t("result.none")}</p><Link to="/">{t("result.back")}</Link></div>;
@@ -40,7 +33,8 @@ export function ResultPage() {
       note: String(form.get("note") ?? "").trim(),
     };
     if (share) {
-      void contribute({ sessionId: session.id, bank, challenges: session.challenges, replies: session.replies, result, identification });
+      void contribute({ sessionId: session.id, bank, challenges: session.challenges, languages: session.languages,
+        replies: session.replies, result, identification });
     }
     setIdentified(true);
   };

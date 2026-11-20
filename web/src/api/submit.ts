@@ -2,7 +2,7 @@
 // step fails, nothing happens and the user is never told. The site works fully without it.
 import { solveChallengeWorkers } from "altcha-lib/v1";
 import AltchaWorker from "altcha-lib/v1/worker?worker";
-import type { Challenge } from "../core/challenges";
+import { promptFor, type Challenge, type PromptLanguage } from "../core/challenges";
 import type { BankInfo, Result } from "../core/scorer";
 import { browserFingerprint } from "./fingerprint";
 
@@ -16,6 +16,7 @@ export interface SubmissionInput {
   sessionId: string;
   bank: BankInfo;
   challenges: Challenge[];
+  languages: PromptLanguage[];  // the language each prompt was shown in when copied
   replies: string[];
   result: Result;
   identification: Identification | null;
@@ -51,7 +52,7 @@ export async function submissionBody(input: SubmissionInput): Promise<object> {
     sent_at: new Date().toISOString(),
     bank_version: bank.version,
     client: { app: "web", version: import.meta.env.VITE_APP_VERSION ?? "dev", language: navigator.language },
-    challenges: input.challenges.map((c) => ({ id: c.id, prompt: c.prompt, expected_count: c.expectedCount, language: c.language })),
+    challenges: input.challenges.map((c, i) => ({ id: c.id, prompt: promptFor(c, input.languages[i]), expected_count: c.expectedCount, language: input.languages[i] })),
     replies: input.replies.map((text, i) => ({ text, expected_count: input.challenges[i].expectedCount })),
     result: {
       used: result.used,

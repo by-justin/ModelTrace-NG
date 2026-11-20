@@ -1,27 +1,32 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { contribute } from "./api/submit";
 import { generateChallenges, type Challenge, type PromptLanguage } from "./core/challenges";
 import { Scorer, type Result } from "./core/scorer";
 
 export interface Session {
-  id: string;            // links the automatic contribution with a later identification
-  challenges: Challenge[];
+  id: string;                   // links the automatic contribution with a later identification
+  challenges: Challenge[];      // made once per page load or "New challenges"
   replies: string[];
-  result: Result | null;
+  languages: PromptLanguage[];  // the language each prompt was shown in when last copied
 }
 
 interface AppState {
   scorer: Scorer | null;
   loadError: boolean;
   session: Session;
+  result: Result | null;        // recomputed whenever a reply changes; null until one is usable
   promptLanguage: PromptLanguage;
   share: boolean;
   setReply(index: number, text: string): void;
-  newChallenges(language?: PromptLanguage): void;
-  analyze(): boolean;
+  copied(index: number): void;
+  setPromptLanguage(language: PromptLanguage): void;
+  newChallenges(): void;
+  contributeNow(): void;
   setShare(share: boolean): void;
 }
 
 const Context = createContext<AppState | null>(null);
+const CONTRIBUTE_DELAY_MS = 1500;
 
 function stored(key: string, fallback: string): string {
   try {
@@ -38,42 +43,61 @@ function store(key: string, value: string) {
 }
 
 function freshSession(language: PromptLanguage): Session {
-  return { id: crypto.randomUUID(), challenges: generateChallenges(language), replies: ["", "", ""], result: null };
+  return { id: crypto.randomUUID(), challenges: generateChallenges(), replies: ["", "", ""], languages: [language, language, language] };
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [scorer, setScorer] = useState<Scorer | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [promptLanguage, setPromptLanguage] = useState<PromptLanguage>(
+  const [promptLanguage, setPromptLanguageState] = useState<PromptLanguage>(
     () => (stored("modeltrace.promptLanguage", "zh") === "en" ? "en" : "zh"),
   );
   const [session, setSession] = useState<Session>(() => freshSession(promptLanguage));
   const [share, setShareState] = useState(() => stored("modeltrace.share", "1") === "1");
+  const sent = useRef<string | null>(null);
 
   useEffect(() => {
     Scorer.load().then(setScorer, () => setLoadError(true));
   }, []);
 
+  const result = useMemo(() => {
+    if (!scorer) return null;
+    const r = scorer.categorize(session.replies.map((text, i) => ({ text, expectedCount: session.challenges[i].expectedCount })));
+    return r.used ? r : null;
+  }, [scorer, session.replies, session.challenges]);
+
   const setReply = useCallback((index: number, text: string) => {
-    setSession((s) => ({ ...s, result: null, replies: s.replies.map((r, i) => (i === index ? text : r)) }));
+    setSession((s) => ({ ...s, replies: s.replies.map((r, i) => (i === index ? text : r)) }));
   }, []);
 
-  const newChallenges = useCallback((language?: PromptLanguage) => {
-    const next = language ?? promptLanguage;
-    if (language) {
-      setPromptLanguage(language);
-      store("modeltrace.promptLanguage", language);
-    }
-    setSession(freshSession(next));
+  const copied = useCallback((index: number) => {
+    setSession((s) => ({ ...s, languages: s.languages.map((l, i) => (i === index ? promptLanguage : l)) }));
   }, [promptLanguage]);
 
-  const analyze = useCallback(() => {
-    if (!scorer) return false;
-    const result = scorer.categorize(session.replies.map((text, i) => ({ text, expectedCount: session.challenges[i].expectedCount })));
-    if (result.used === 0) return false;
-    setSession((s) => ({ ...s, id: crypto.randomUUID(), result }));
-    return true;
-  }, [scorer, session]);
+  const setPromptLanguage = useCallback((language: PromptLanguage) => {
+    setPromptLanguageState(language);
+    store("modeltrace.promptLanguage", language);
+  }, []);
+
+  const newChallenges = useCallback(() => setSession(freshSession(promptLanguage)), [promptLanguage]);
+
+  // Contribute once per distinct set of replies, in the background; failures are silent by design.
+  const contributeNow = useCallback(() => {
+    const key = session.replies.join("\u0000");
+    if (!scorer || !result || !share || sent.current === key) return;
+    sent.current = key;
+    const id = crypto.randomUUID();
+    setSession((s) => ({ ...s, id }));
+    void contribute({ sessionId: id, bank: scorer.bank, challenges: session.challenges, languages: session.languages,
+      replies: session.replies, result, identification: null });
+  }, [scorer, result, share, session]);
+
+  // Every reply usable: contribute automatically once the user stops typing.
+  useEffect(() => {
+    if (!result || result.used < session.challenges.length) return;
+    const timer = window.setTimeout(contributeNow, CONTRIBUTE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [result, session.challenges.length, contributeNow]);
 
   const setShare = useCallback((value: boolean) => {
     setShareState(value);
@@ -81,8 +105,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ scorer, loadError, session, promptLanguage, share, setReply, newChallenges, analyze, setShare }),
-    [scorer, loadError, session, promptLanguage, share, setReply, newChallenges, analyze, setShare],
+    () => ({ scorer, loadError, session, result, promptLanguage, share, setReply, copied, setPromptLanguage, newChallenges, contributeNow, setShare }),
+    [scorer, loadError, session, result, promptLanguage, share, setReply, copied, setPromptLanguage, newChallenges, contributeNow, setShare],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
