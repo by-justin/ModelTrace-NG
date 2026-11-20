@@ -1,46 +1,48 @@
 {
-  "models": 55,
-  "answers": 2088,
+  "models": 57,
+  "answers": 2160,
   "left_out": {
-    "north-mini-code": 17,
-    "gemini-2.5-flash-lite": 29,
-    "gemma-3-27b-it@fp8": 15,
+    "claude-fable-5": 30,
+    "claude-opus-5": 3,
+    "north-mini-code": 30,
+    "gemini-2.5-flash-lite": 31,
+    "gemma-3-27b-it@fp8": 27,
     "gemma-3-4b-it": 34,
     "nemotron-3-nano-omni-30b-a3b": 25,
-    "nemotron-3-ultra-550b-a55b": 34,
+    "nemotron-3-ultra-550b-a55b": 35,
     "flint-v1.0": 35
   },
   "calibration": [
     {
       "queries": 1,
       "beta": 4.009950371749615,
-      "cv_accuracy": 0.8793103448275862,
-      "samples": 2088
+      "cv_accuracy": 0.8787037037037037,
+      "samples": 2160
     },
     {
       "queries": 2,
-      "beta": 6.174199140968442,
-      "cv_accuracy": 0.953544061302682,
-      "samples": 2088
+      "beta": 5.844919317201684,
+      "cv_accuracy": 0.9523148148148148,
+      "samples": 2160
     },
     {
       "queries": 3,
-      "beta": 6.612006525490363,
-      "cv_accuracy": 0.9712643678160919,
-      "samples": 696
+      "beta": 6.389354036971213,
+      "cv_accuracy": 0.9680555555555556,
+      "samples": 720
     }
   ],
   "leave_setup_out": {
-    "single": 0.875,
-    "three": 0.9712643678160919
+    "single": 0.875462962962963,
+    "three": 0.9680555555555556
   },
   "family_classifier": {
-    "setup_held_out": 0.9942528735632183,
-    "model_held_out": 0.7672413793103449
+    "setup_held_out": 0.9944444444444445,
+    "model_held_out": 0.8027777777777778
   },
   "unknown_threshold": [
-    0.1501257748317657,
-    0.1615185823205871,
-    0.1667643467023131
+    0.14581491521516596,
+    0.16124004088913796,
+    0.17286160782501653
   ]
 }
