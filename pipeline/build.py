@@ -47,6 +47,11 @@ BRANDS = {
     "ling": "Ling",
     "particle": "Particle",
     "flint": "Flint",
+    "glm": "GLM",
+    "kimi": "Kimi",
+    "mimo": "MiMo",
+    "minimax": "MiniMax",
+    "step": "Step",
 }
 
 

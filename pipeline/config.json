@@ -43,7 +43,9 @@
       "prefixes": [
         "deepseek"
       ],
-      "routes": []
+      "routes": [
+        "deepseek"
+      ]
     },
     "nvidia": {
       "name": "NVIDIA",
@@ -98,6 +100,70 @@
       "routes": [
         "recursive"
       ]
+    },
+    "qwen": {
+      "name": "Qwen (Alibaba)",
+      "prefixes": [
+        "qwen4",
+        "qwen3.8"
+      ],
+      "routes": [
+        "alibaba"
+      ]
+    },
+    "zai": {
+      "name": "Z.ai",
+      "prefixes": [
+        "glm"
+      ],
+      "routes": [
+        "z-ai"
+      ]
+    },
+    "moonshot": {
+      "name": "Moonshot AI",
+      "prefixes": [
+        "kimi"
+      ],
+      "routes": [
+        "moonshotai"
+      ]
+    },
+    "tencent": {
+      "name": "Tencent",
+      "prefixes": [
+        "hy4"
+      ],
+      "routes": [
+        "tencent"
+      ]
+    },
+    "minimax": {
+      "name": "MiniMax",
+      "prefixes": [
+        "minimax"
+      ],
+      "routes": [
+        "minimax"
+      ]
+    },
+    "xiaomi": {
+      "name": "Xiaomi",
+      "prefixes": [
+        "mimo"
+      ],
+      "routes": [
+        "xiaomi"
+      ]
+    },
+    "stepfun": {
+      "name": "StepFun",
+      "prefixes": [
+        "step"
+      ],
+      "routes": [
+        "stepfun"
+      ]
     }
   },
   "partner_routes": [
@@ -132,7 +198,8 @@
   "comparison_only_markers": [
     "@api",
     "@vertex",
-    "@aistudio"
+    "@aistudio",
+    "@fp4"
   ],
   "display_names": {
     "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
