@@ -72,7 +72,7 @@ repos:
       # ---- Web ----
       - id: web-typecheck
         name: web typecheck (tsc)
-        entry: bash -c 'cd web && pnpm exec tsc -b'
+        entry: bash -c 'cd web && pnpm install --frozen-lockfile --silent && pnpm exec tsc -b'
         language: system
         files: ^web/.*\.(ts|tsx)$
         pass_filenames: false
