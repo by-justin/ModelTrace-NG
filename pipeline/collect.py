@@ -4,6 +4,9 @@
         --model openai/gpt-6-luna --provider openai/flex --label gpt-6-luna \\
         --out staging/openrouter_gpt.jsonl --budget 0.5 [--effort low] [--temperature 1.0] [--top-p 1.0] [--top-k 64]
 
+    … add --batch to send every missing prompt as one OpenRouter Batch API job (about half price,
+    results within 24 hours; the provider is pinned with provider.only)
+
     python -m pipeline.collect import staging/openrouter_gpt.jsonl [more staging files…]
 
 Rules (see pipeline/references.py for how rows are used):
@@ -36,6 +39,7 @@ from .references import family_of, load_config
 from .suite import fingerprint_suite
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
+BATCH_URL = "https://openrouter.ai/api/v1/batches"
 RATIO_RANGE = (0.8, 1.2)
 MAX_ATTEMPTS = 3
 
@@ -60,12 +64,12 @@ def pattern_reasons(numbers: list[int]) -> list[str]:
     return reasons
 
 
-def _call(body: dict) -> dict:
+def _call(body: dict | None, url: str = URL) -> dict:
     key = Path(os.environ["OPENROUTER_KEY_FILE"]).expanduser().read_text().strip()
     request = urllib.request.Request(
-        URL,
-        data=json.dumps(body).encode(),
-        method="POST",
+        url,
+        data=json.dumps(body).encode() if body is not None else None,
+        method="POST" if body is not None else "GET",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=600) as response:
@@ -83,7 +87,8 @@ def quality_reasons(numbers: list[int], expected_count: int, finish: str | None)
     )
 
 
-def run(args: argparse.Namespace) -> None:
+def _missing(args: argparse.Namespace) -> tuple[list[dict], set[str]]:
+    """Suite prompts that still lack a valid answer from this label on this route."""
     suite = fingerprint_suite()
     tasks = suite if args.tasks == "all" else [t for t in suite if t["challenge_id"] in set(args.tasks.split(","))]
     done = set()
@@ -99,26 +104,82 @@ def run(args: argparse.Namespace) -> None:
                 and not records.hard_reasons(row)
             ):
                 done.add(row["challenge_id"])
-    tasks = [t for t in tasks if t["challenge_id"] not in done]
+    return [t for t in tasks if t["challenge_id"] not in done], done
+
+
+def _messages(task: dict) -> list[dict]:
+    prompt = f"{task['user_prefix']}\n\nFinal task:\n{task['prompt']}" if task["user_prefix"] else task["prompt"]
+    return ([{"role": "system", "content": task["system"]}] if task["system"] else []) + [
+        {"role": "user", "content": prompt}
+    ]
+
+
+def _settings(args: argparse.Namespace) -> dict:
+    body: dict = {"max_tokens": args.max_tokens}
+    if args.effort:
+        body["reasoning"] = {"effort": args.effort}
+    for name in ("temperature", "top_p", "top_k"):
+        if getattr(args, name) is not None:
+            body[name] = getattr(args, name)
+    return body
+
+
+def _row(args: argparse.Namespace, task: dict, payload: dict, attempt: int, seconds: float | None, **extra) -> dict:
+    choice, usage = payload["choices"][0], payload.get("usage") or {}
+    text = choice["message"].get("content") or ""
+    numbers = parse_numbers(text)
+    finish = choice.get("finish_reason")
+    quality = quality_reasons(numbers, task["expected_count"], finish)
+    return {
+        "row_id": f"{task['condition']}-{secrets.token_hex(8)}",
+        "source": args.label,
+        "condition_id": task["condition"],
+        "nuisance_condition_id": task["condition"],
+        "challenge_id": task["challenge_id"],
+        "wrapper_transport": task["transport"],
+        "requested_count": task["expected_count"],
+        "parsed_count": len(numbers),
+        "provider": f"openrouter:{payload.get('provider', args.provider)}",
+        "openrouter_provider_tag": args.provider,
+        "requested_model": args.model,
+        "response_model": payload.get("model"),
+        "generation_id": payload.get("id"),
+        **extra,
+        "reasoning_effort": args.effort or "provider_default",
+        "temperature": args.temperature if args.temperature is not None else "provider_default",
+        "top_p": args.top_p if args.top_p is not None else "provider_default",
+        "top_k": args.top_k if args.top_k is not None else "provider_default",
+        "max_tokens": args.max_tokens,
+        "finish_reason": finish,
+        "usage": usage,
+        "byok": usage.get("is_byok"),
+        "request_seconds": round(seconds, 2) if seconds is not None else None,
+        "attempt": attempt,
+        "count_ratio": len(numbers) / task["expected_count"],
+        "quality_reasons": quality,
+        "reference_valid": not [q for q in quality if not q.startswith("count_ratio")],
+        "output_sha256": hashlib.sha256(text.encode()).hexdigest(),
+        "collected_at": datetime.now(UTC).isoformat(),
+        "text": text,
+    }
+
+
+def run(args: argparse.Namespace) -> None:
+    if args.batch:
+        run_batch(args)
+        return
+    tasks, done = _missing(args)
     lock, spend = threading.Lock(), [0.0]
     stats = {"accepted": 0, "rejected": 0, "errors": 0}
 
     def one(task: dict) -> None:
-        base_prompt = task["prompt"]
-        prompt = f"{task['user_prefix']}\n\nFinal task:\n{base_prompt}" if task["user_prefix"] else base_prompt
         body = {
             "model": args.model,
-            "messages": ([{"role": "system", "content": task["system"]}] if task["system"] else [])
-            + [{"role": "user", "content": prompt}],
-            "max_tokens": args.max_tokens,
+            "messages": _messages(task),
+            **_settings(args),
             "provider": {"order": [args.provider], "allow_fallbacks": False, "require_parameters": True},
             "usage": {"include": True},
         }
-        if args.effort:
-            body["reasoning"] = {"effort": args.effort}
-        for name in ("temperature", "top_p", "top_k"):
-            if getattr(args, name) is not None:
-                body[name] = getattr(args, name)
         attempt = rate_limited = 0
         while attempt < MAX_ATTEMPTS:
             attempt += 1
@@ -147,50 +208,14 @@ def run(args: argparse.Namespace) -> None:
             if not payload.get("choices"):
                 time.sleep(3 * attempt)
                 continue
-            choice, usage = payload["choices"][0], payload.get("usage") or {}
-            text = choice["message"].get("content") or ""
-            numbers = parse_numbers(text)
-            ratio = len(numbers) / task["expected_count"]
-            finish = choice.get("finish_reason")
-            quality = quality_reasons(numbers, task["expected_count"], finish)
-            row = {
-                "row_id": f"{task['condition']}-{secrets.token_hex(8)}",
-                "source": args.label,
-                "condition_id": task["condition"],
-                "nuisance_condition_id": task["condition"],
-                "challenge_id": task["challenge_id"],
-                "wrapper_transport": task["transport"],
-                "requested_count": task["expected_count"],
-                "parsed_count": len(numbers),
-                "provider": f"openrouter:{payload.get('provider', args.provider)}",
-                "openrouter_provider_tag": args.provider,
-                "requested_model": args.model,
-                "response_model": payload.get("model"),
-                "generation_id": payload.get("id"),
-                "reasoning_effort": args.effort or "provider_default",
-                "temperature": args.temperature if args.temperature is not None else "provider_default",
-                "top_p": args.top_p if args.top_p is not None else "provider_default",
-                "top_k": args.top_k if args.top_k is not None else "provider_default",
-                "max_tokens": args.max_tokens,
-                "finish_reason": finish,
-                "usage": usage,
-                "byok": usage.get("is_byok"),
-                "request_seconds": round(time.time() - started, 2),
-                "attempt": attempt,
-                "count_ratio": ratio,
-                "quality_reasons": quality,
-                "reference_valid": not [q for q in quality if not q.startswith("count_ratio")],
-                "output_sha256": hashlib.sha256(text.encode()).hexdigest(),
-                "collected_at": datetime.now(UTC).isoformat(),
-                "text": text,
-            }
+            row = _row(args, task, payload, attempt, time.time() - started)
             with lock:
-                spend[0] += float(usage.get("cost") or 0.0)
+                spend[0] += float(row["usage"].get("cost") or 0.0)
                 with args.out.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(row, ensure_ascii=False) + "\n")
                 stats["accepted" if row["reference_valid"] else "rejected"] += 1
             print(
-                f"  {task['challenge_id']}: {len(numbers)}/{task['expected_count']} "
+                f"  {task['challenge_id']}: {row['parsed_count']}/{task['expected_count']} "
                 f"{'OK' if row['reference_valid'] else 'REJECT ' + ','.join(records.hard_reasons(row))}",
                 flush=True,
             )
@@ -200,6 +225,61 @@ def run(args: argparse.Namespace) -> None:
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         list(pool.map(one, tasks))
     print(json.dumps({"label": args.label, **stats, "spend_usd": round(spend[0], 4), "already_done": len(done)}))
+
+
+def _submit(body: dict) -> dict:
+    """Submit a batch; while the balance is below the batch's worst-case cost (HTTP 402), wait
+    for top-ups and retry."""
+    for _ in range(120):
+        try:
+            return _call(body, BATCH_URL)
+        except urllib.error.HTTPError as error:
+            if error.code != 402:
+                raise
+            time.sleep(60)
+    raise RuntimeError("balance stayed too low to submit the batch")
+
+
+def run_batch(args: argparse.Namespace) -> None:
+    """Missing prompts as Batch API jobs of --batch-size requests; repeat for prompts still
+    invalid, up to MAX_ATTEMPTS rounds. The provider is pinned with provider.only (the Batch API
+    has no order)."""
+    spend, stats = 0.0, {"accepted": 0, "rejected": 0, "errors": 0}
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        tasks, _ = _missing(args)
+        if not tasks or spend >= args.budget:
+            break
+        by_id = {t["challenge_id"]: t for t in tasks}
+        batches = []
+        for i in range(0, len(tasks), args.batch_size):
+            body = {"endpoint": "/v1/chat/completions", "model": args.model, "provider": {"only": [args.provider]}}
+            body["requests"] = [  # the API requires provider before requests
+                {"custom_id": t["challenge_id"], "body": {"messages": _messages(t), **_settings(args)}}
+                for t in tasks[i : i + args.batch_size]
+            ]
+            batch = _submit(body)
+            print(f"  batch {batch['id']}: {len(body['requests'])} requests on {batch.get('provider')}", flush=True)
+            batches.append(batch)
+        for batch in batches:
+            while batch.get("status") not in ("completed", "failed", "expired", "cancelled"):
+                time.sleep(args.poll)
+                batch = _call(None, f"{BATCH_URL}/{batch['id']}")
+            if batch["status"] != "completed":
+                print(f"  batch {batch['id']} {batch['status']}: {batch.get('error')}", flush=True)
+                stats["errors"] += batch.get("request_counts", {}).get("total", 0)
+                continue
+            with args.out.open("a", encoding="utf-8") as handle:
+                for result in batch.get("results") or []:
+                    response = result.get("response") or {}
+                    payload = response.get("body", response)  # tolerate a {status_code, body} wrapper
+                    if result.get("error") or not payload.get("choices"):
+                        stats["errors"] += 1
+                        continue
+                    row = _row(args, by_id[result["custom_id"]], payload, attempt, None, batch_id=batch["id"])
+                    handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    stats["accepted" if row["reference_valid"] else "rejected"] += 1
+            spend += float((batch.get("usage") or {}).get("cost") or 0.0)
+    print(json.dumps({"label": args.label, "batch": True, **stats, "spend_usd": round(spend, 4)}))
 
 
 def import_records(paths: list[Path]) -> None:
@@ -234,6 +314,9 @@ def main() -> None:
     r.add_argument("--max-tokens", type=int, default=32000)
     r.add_argument("--tasks", default="all", help="'all' or comma-separated challenge ids")
     r.add_argument("--workers", type=int, default=4)
+    r.add_argument("--batch", action="store_true", help="use the Batch API (about half price, slower)")
+    r.add_argument("--poll", type=int, default=60, help="seconds between batch status checks")
+    r.add_argument("--batch-size", type=int, default=36, help="requests per batch job")
     i = sub.add_parser("import", help="import staging files into data/records")
     i.add_argument("paths", type=Path, nargs="+")
     args = parser.parse_args()
