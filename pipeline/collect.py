@@ -72,6 +72,17 @@ def _call(body: dict) -> dict:
         return json.loads(response.read().decode())
 
 
+def quality_reasons(numbers: list[int], expected_count: int, finish: str | None) -> list[str]:
+    """Why an answer is not valid (shared by every collector). count_ratio_* is informational."""
+    ratio = len(numbers) / expected_count
+    return (
+        (["too_few_numbers"] if len(numbers) < minimum_numbers(expected_count) else [])
+        + ([] if RATIO_RANGE[0] <= ratio <= RATIO_RANGE[1] else [f"count_ratio_{ratio:.2f}"])
+        + ([] if finish in ("stop", None) else [f"finish_{finish}"])
+        + pattern_reasons(numbers)
+    )
+
+
 def run(args: argparse.Namespace) -> None:
     suite = fingerprint_suite()
     tasks = suite if args.tasks == "all" else [t for t in suite if t["challenge_id"] in set(args.tasks.split(","))]
@@ -141,12 +152,7 @@ def run(args: argparse.Namespace) -> None:
             numbers = parse_numbers(text)
             ratio = len(numbers) / task["expected_count"]
             finish = choice.get("finish_reason")
-            quality = (
-                (["too_few_numbers"] if len(numbers) < minimum_numbers(task["expected_count"]) else [])
-                + ([] if RATIO_RANGE[0] <= ratio <= RATIO_RANGE[1] else [f"count_ratio_{ratio:.2f}"])
-                + ([] if finish in ("stop", None) else [f"finish_{finish}"])
-                + pattern_reasons(numbers)
-            )
+            quality = quality_reasons(numbers, task["expected_count"], finish)
             row = {
                 "row_id": f"{task['condition']}-{secrets.token_hex(8)}",
                 "source": args.label,

@@ -15,6 +15,7 @@ uv run python -m pipeline.golden              # core/trace/testdata/golden.json 
 |---|---|
 | `suite.py` | The 36-prompt reference suite and the test-challenge generator |
 | `collect.py` | `run`: collect the suite for one model through OpenRouter · `import`: file staging output into `data/records/` |
+| `anthropic_batch.py` | Collect the suite from Anthropic's own API with the Message Batches API (half price, asynchronous) |
 | `records.py` | The records tree `data/records/<vendor>/<label>/<route>.jsonl` and its shared row format |
 | `references.py` | Load records into bank rows (validity, first valid answer per prompt, merges, completeness) |
 | `parsing.py`, `features.py` | Reply → numbers → feature vectors (mirrored in `core/trace`) |
