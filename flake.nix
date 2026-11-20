@@ -72,6 +72,10 @@
           env = {
             UV_PYTHON = "${python}/bin/python3.12";
             UV_PYTHON_DOWNLOADS = "never";
+          } // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            # uv installs manylinux wheels (numpy, scikit-learn) that link against the system
+            # C++ runtime, which a Nix environment does not expose by default.
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib pkgs.zlib ];
           };
           shellHook = ''
             if [ -f .pre-commit-config.yaml ] && [ -d .git ] && [ ! -f .git/hooks/pre-commit ]; then
