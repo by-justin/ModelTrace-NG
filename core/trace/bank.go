@@ -17,7 +17,7 @@ type Model struct {
 	DisplayName string   `json:"display_name"`
 	Family      int      `json:"family"`
 	Members     []string `json:"members"`
-	Source      string   `json:"source"` // official | partner | host | reseller
+	Source      string   `json:"source"` // official | partner | host
 	Providers   []string `json:"providers"`
 	Collected   string   `json:"collected"`
 	Responses   int      `json:"responses"`

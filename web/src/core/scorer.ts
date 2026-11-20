@@ -11,7 +11,7 @@ export interface ModelInfo {
   displayName: string;
   family: number;
   members: string[];
-  source: "official" | "partner" | "host" | "reseller";
+  source: "official" | "partner" | "host";
   providers: string[];
   collected: string;
   responses: number;

@@ -37,10 +37,8 @@ def family_of(label: str, config: dict) -> str:
 
 
 def route_class(row: dict, family_id: str, config: dict) -> str:
-    """official | partner | host | reseller — where this answer came from."""
+    """official | partner | host — where this answer came from."""
     provider = str(row.get("provider") or "").lower()
-    if provider in config["reseller_providers"]:
-        return "reseller"
     route = (row.get("openrouter_provider_tag") or provider).split("/")[0]
     if route in config["families"][family_id]["routes"]:
         return "official"

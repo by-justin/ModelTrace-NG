@@ -92,7 +92,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; align-self: flex-start; padding: 5px 11px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--line); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .chip.success, .chip.tier-match, .chip.source-official { background: var(--success-soft); color: var(--success); border-color: transparent; }
-.chip.warn, .chip.tier-unknown, .chip.source-reseller { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip.warn, .chip.tier-unknown { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
 .chip.tier-family, .chip.source-partner { background: var(--info-soft); color: var(--info); border-color: transparent; }
 .overline { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .notice { padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }

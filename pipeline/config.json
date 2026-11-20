@@ -72,15 +72,6 @@
         "cohere"
       ]
     },
-    "liquid": {
-      "name": "Liquid AI",
-      "prefixes": [
-        "lfm"
-      ],
-      "routes": [
-        "liquid"
-      ]
-    },
     "inclusionai": {
       "name": "inclusionAI",
       "prefixes": [
@@ -111,9 +102,6 @@
   },
   "partner_routes": [
     "google-vertex"
-  ],
-  "reseller_providers": [
-    "oaipro"
   ],
   "merge": {
     "gpt-6-astra+gpt-6.1-sol": {
@@ -147,6 +135,7 @@
     "@aistudio"
   ],
   "display_names": {
-    "claude-haiku-4-5-20251001": "Claude Haiku 4.5"
+    "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
+    "claude-opus-4-5-20251101": "Claude Opus 4.5"
   }
 }

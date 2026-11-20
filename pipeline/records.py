@@ -26,9 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / "data" / "records"
 REJECTED_TEXT_CHARS = 2000
 _DROP = ("prompt", "base_prompt", "system_prompt", "user_prefix", "source", "_provider")
-_LEGACY = {  # providers of the two collections made before this pipeline
+_LEGACY = {  # provider of the collection made before this pipeline
     "codex": ("codex-subscription", "Codex subscription"),
-    "oaipro": ("oaipro-reseller", "OAIPro (reseller)"),
 }
 
 

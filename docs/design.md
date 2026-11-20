@@ -88,13 +88,15 @@ and the known-model check were added.
   Anthropic, Google AI Studio or Vertex, NVIDIA, Baidu…), then the vendor's licensed cloud
   (partner), then a host running full-precision open weights. Compressed copies are labelled
   (`@fp8`). OpenAI "flex" is accepted: same model, lower price.
-- **Provenance tiers** shown on the site: official, partner, third-party host, reseller.
-- **Reseller data is untrusted.** The 10 original Claude models came from a reseller. They stay
-  in the bank marked "reseller · unverified" until checked against an official route; matching
-  sets are merged (72 answers), otherwise only the official set is kept. Claude on Vertex is not
-  available to us, so the official route is Anthropic's own API.
+- **Provenance tiers** shown on the site: official, partner, third-party host.
+- **No reseller data.** The original Claude collection came from a reseller. Checked against
+  Anthropic's own API, some sets matched and others had drifted or resembled a different model,
+  so it was dropped (2026-11-19): every Claude model comes from Anthropic's API (Message Batches).
+- **Refusals.** Claude Opus 5 returns an empty, filtered reply to 11 of the 12 prompt setups on
+  every route (Anthropic, Bedrock, Claude on AWS, Azure), and Claude Fable 5 to 6 specific
+  prompts, however often they are retried. Neither can enter the bank under the completeness rule.
 - **Settings:** reasoning effort and sampling stay at the route's defaults (that is how users
-  test), except where a model produces nothing at its default (lfm-3 runs at low effort).
+  test).
   Open-weight models use the vendor's recommended sampling.
 - **Completeness:** a model enters the bank only with all 36 suite prompts, covering the 12
   prompt setups three times each. Partial models degrade the prompt-setup correction for every
@@ -133,7 +135,9 @@ and the known-model check were added.
   suite; nothing was collected with the site's own test prompts. Planned: gather real-prompt
   answers per model, probably through crowd submissions verified against official collection,
   and use them as the release check.
-- Re-check the reseller Claude models against Anthropic's API.
+- Models short of 36 valid answers because they loop, count or refuse on particular prompts
+  (Gemini 2.5 Flash-Lite, Gemma 3, Claude Opus 5 and Fable 5): admit partial coverage, or add
+  prompt setups they answer.
 - Finish the models still collecting, rebuild the bank, regenerate golden cases.
 - Possible later: the "where your answers land" map (needs a 2D projection stored in the bank),
   additional probe types alongside the number task, versioned banks with scheduled re-collection.

@@ -12,7 +12,7 @@ data/records/<vendor>/<label>/<route>.jsonl
   decides which labels enter the bank and which are merged.
 - **route** — how the answers were obtained: `openrouter-<provider tag>` (e.g. `openrouter-openai-flex`,
   `openrouter-google-vertex-global`), `codex-subscription` (official OpenAI Codex subscription) or
-  `oaipro-reseller` (the original Claude collection, untrusted until checked against an official route).
+  `anthropic-api` (Anthropic's own API, through Message Batches).
 
 Each line is one answer, in collection order, with at least: `label`, `vendor`, `route`,
 `provider_name`, `condition_id`, `challenge_id`, `requested_count`, `parsed_count`, `text`,

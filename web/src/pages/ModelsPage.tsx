@@ -4,7 +4,7 @@ import type { ModelInfo } from "../core/scorer";
 import { useApp } from "../state";
 
 const MAIN_FAMILIES = ["openai", "anthropic", "google"];
-const SOURCES: ModelInfo["source"][] = ["official", "partner", "host", "reseller"];
+const SOURCES: ModelInfo["source"][] = ["official", "partner", "host"];
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 
 export function ModelsPage() {
@@ -36,7 +36,7 @@ export function ModelsPage() {
         <p className="lead">{t("models.lead")}</p>
       </section>
 
-      <section className="tiles four">
+      <section className="tiles three">
         {SOURCES.map((s) => (
           <div key={s} className="tile">
             <span className={`chip source-${s}`}>{t(`models.sources.${s}.name`)}</span>
