@@ -146,7 +146,14 @@ and the known-model check were added.
 - Models short of 36 valid answers because they loop, count or refuse on particular prompts
   (Gemini 2.5 Flash-Lite, Gemma 3, Claude Opus 5 and Fable 5): admit partial coverage, or add
   prompt setups they answer.
-- Finish the models still collecting, rebuild the bank, regenerate golden cases.
+- **Quantized host copies.** Each Chinese model also has its cheapest fp4 host collected as a
+  comparison-only `@fp4` label, scored against the bank (2026-11-20). Seven of nine are named as
+  their original in 9-12 of 12 setups, so quantization alone leaves the fingerprint intact. Two do
+  not: MiniMax M3.1 Flash on Makora (2/12; ERNIE 5.5 Flash or Qwen4 Max instead) and DeepSeek V4.1
+  Flash 1017 on Ambient (4/12; mostly Particle-1, which the full-precision model is also confused
+  with 2 times in 12). Either the host's quantization changed the model or it serves something
+  else; the fingerprint cannot tell which. The site should then say "does not match" rather than
+  name another model with confidence; several of these verdicts currently reach the "match" tier.
 - Possible later: the "where your answers land" map (needs a 2D projection stored in the bank),
   additional probe types alongside the number task, versioned banks with scheduled re-collection.
 - The Codex plugin (ModelTrace Guard) was removed with its frozen bank and legacy JavaScript

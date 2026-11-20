@@ -1,54 +1,47 @@
 {
-  "models": 61,
-  "answers": 2271,
+  "models": 72,
+  "answers": 2667,
   "left_out": {
     "claude-fable-5": 30,
     "north-mini-code": 30,
-    "deepseek-v4-pro-0813": 22,
     "gemini-2.5-flash-lite": 31,
     "gemma-3-27b-it@fp8": 32,
     "gemma-3-4b-it": 34,
-    "kimi-k2.7-code": 13,
-    "kimi-k3": 30,
     "nemotron-3-nano-omni-30b-a3b": 29,
     "nemotron-3-ultra-550b-a55b": 35,
-    "qwen3.8-flash": 16,
-    "qwen4-max": 31,
-    "flint-v1.0": 35,
-    "hy4": 15,
-    "mimo-v2.6-flash": 18
+    "flint-v1.0": 35
   },
   "calibration": [
     {
       "queries": 1,
-      "beta": 3.9015568683983797,
-      "cv_accuracy": 0.8753852928225452,
-      "samples": 2271
+      "beta": 3.8749194358806953,
+      "cv_accuracy": 0.859392575928009,
+      "samples": 2667
     },
     {
       "queries": 2,
-      "beta": 5.64809769790177,
-      "cv_accuracy": 0.952443857331572,
-      "samples": 2271
+      "beta": 5.457903843284567,
+      "cv_accuracy": 0.9388826396700413,
+      "samples": 2667
     },
     {
       "queries": 3,
-      "beta": 6.389354036971213,
-      "cv_accuracy": 0.9682539682539683,
-      "samples": 756
+      "beta": 6.090179665583147,
+      "cv_accuracy": 0.9583333333333334,
+      "samples": 888
     }
   ],
   "leave_setup_out": {
-    "single": 0.8721340388007055,
-    "three": 0.9682539682539683
+    "single": 0.8547297297297297,
+    "three": 0.9583333333333334
   },
   "family_classifier": {
-    "setup_held_out": 0.9947159841479525,
-    "model_held_out": 0.760898282694848
+    "setup_held_out": 0.9820022497187851,
+    "model_held_out": 0.6962879640044994
   },
   "unknown_threshold": [
-    0.14548434726418671,
-    0.15833512751562462,
-    0.16590235227268219
+    0.14233001017602148,
+    0.13679524758603132,
+    0.15019548395015445
   ]
 }
