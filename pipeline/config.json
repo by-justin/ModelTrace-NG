@@ -137,5 +137,9 @@
   "display_names": {
     "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
     "claude-opus-4-5-20251101": "Claude Opus 4.5"
+  },
+  "partial_coverage": {
+    "_comment": "Labels admitted without all 36 prompts. Their centroid is shifted by each answered setup's average offset; per-model accuracy cannot be measured by leaving a setup out and shows as not measured.",
+    "claude-opus-5": "Anthropic's API returns a filtered, empty reply to every prompt setup except 04 (plain Chinese) on every route tried (Anthropic, Bedrock, Claude on AWS, Azure). Decided 2026-11-19."
   }
 }

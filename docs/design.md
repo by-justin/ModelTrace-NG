@@ -92,15 +92,23 @@ and the known-model check were added.
 - **No reseller data.** The original Claude collection came from a reseller. Checked against
   Anthropic's own API, some sets matched and others had drifted or resembled a different model,
   so it was dropped (2026-11-19): every Claude model comes from Anthropic's API (Message Batches).
-- **Refusals.** Claude Opus 5 returns an empty, filtered reply to 11 of the 12 prompt setups on
-  every route (Anthropic, Bedrock, Claude on AWS, Azure), and Claude Fable 5 to 6 specific
-  prompts, however often they are retried. Neither can enter the bank under the completeness rule.
+- **Refusals.** Anthropic's API returns an empty, filtered reply (`stop_reason: refusal`, no
+  output) to some of the suite. Claude Fable 5 is blocked on 6 prompts whose wrapper reads like a
+  prompt injection; the same sentences in another order pass. Claude Opus 5 is blocked on every
+  setup except 04 (plain Chinese) on every route tried (Anthropic, Bedrock, Claude on AWS, Azure).
+  Repeated refusals tighten the filter for the calling account: after about 160, a key that had
+  answered setup 04 and the site's prompts refused them too. Do not retry refused prompts in bulk.
 - **Settings:** reasoning effort and sampling stay at the route's defaults (that is how users
   test).
   Open-weight models use the vendor's recommended sampling.
 - **Completeness:** a model enters the bank only with all 36 suite prompts, covering the 12
-  prompt setups three times each. Partial models degrade the prompt-setup correction for every
-  model.
+  prompt setups three times each. Partial models would degrade the prompt-setup correction for
+  every model. The exception is an explicit list in `pipeline/config.json` (`partial_coverage`),
+  currently only Claude Opus 5 (3 answers, setup 04). Such a model's centroid is built from its
+  answers shifted by each setup's average offset, measured on the complete models; complete
+  models are unaffected. Its accuracy cannot be measured by leaving a setup out, so the site
+  shows "—". It is a best-effort entry: on one held-out answer to a site prompt, Opus 5 was
+  named as Anthropic but matched to Fable 5.1.
 - **Validity:** an answer counts when it has at least max(80, 55% of the requested) numbers,
   finished normally and shows no counting pattern. The count ratio is recorded but never rejects:
   filtering a model's natural over- or under-production biases its fingerprint. Only the first
